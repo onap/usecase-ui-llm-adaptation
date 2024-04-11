@@ -1,0 +1,8 @@
+Verified+1: ONAP Required GHA <releng+onap.required.gha@linuxfoundation.org>
+Code-Review+2: Keguang He <hekeguang@chinamobile.com>
+Verified+1: ONAP Jobbuilder <onap-jobbuilder@jenkins.onap.org>
+Submitted-by: Keguang He <hekeguang@chinamobile.com>
+Submitted-at: Thu, 11 Apr 2024 02:43:00 +0000
+Reviewed-on: https://gerrit.onap.org/r/c/usecase-ui/llm-adaptation/+/137556
+Project: usecase-ui/llm-adaptation
+Branch: refs/heads/master
