@@ -1,4 +1,2 @@
 server:
   port: 8084
-  servlet:
-    context-path: /api/usecaseui-llm-adaptation/v1
