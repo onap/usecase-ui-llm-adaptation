@@ -31,6 +31,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>llm-adaptation</module>
+        <module>standalone</module>
     </modules>
 
     <properties>
