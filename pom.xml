@@ -35,9 +35,14 @@
     </modules>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <sonar.projectVersion>${project.version}</sonar.projectVersion>
+        <maven.build.timestamp.format>yyyyMMdd'T'HHmm</maven.build.timestamp.format>
+        <nexusproxy>https://nexus.onap.org</nexusproxy>
+        <snapshotNexusPath>content/repositories/snapshots/</snapshotNexusPath>
+        <releaseNexusPath>content/repositories/releases/</releaseNexusPath>
+        <siteNexusPath>content/sites/site/${project.groupId}/${project.artifactId}/${project.version}/</siteNexusPath>
     </properties>
 
 </project>
