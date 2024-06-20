@@ -33,6 +33,7 @@ public class LlmController {
     @Autowired
     private LlmService llmService;
 
+    // Interacting with large models
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> streamData(@RequestBody String question) {
         return llmService.getStream(question);
