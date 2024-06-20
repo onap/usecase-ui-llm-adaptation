@@ -1,0 +1,10 @@
+distribution_type: 'container'
+container_release_tag: '14.0.0'
+project: 'usecase-ui-llm-adaptation'
+container_pull_registry: nexus3.onap.org:10003
+container_push_registry: nexus3.onap.org:10002
+log_dir: 'usecase-ui-llm-adaptation-maven-docker-stage-master/2'
+ref: 'fbef3025d61fa23265f1733c6e6de7588b168681'
+containers:
+    - name: 'usecase-ui-llm-adaptation'
+      version: '14.0.0-STAGING-20240620T090919Z'
