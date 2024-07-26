@@ -26,6 +26,7 @@
     <modules>
         <module>llm-adaptation</module>
         <module>standalone</module>
+        <module>checkstyle</module>
     </modules>
 
     <properties>
