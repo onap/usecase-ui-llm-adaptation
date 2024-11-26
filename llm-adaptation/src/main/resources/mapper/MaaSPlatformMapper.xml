@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper">
+    <insert id="insertMaaSPlatform">
+        insert into maas_platform(maas_platform_id,maas_platform_name,operator_id,operator_name)
+        values (#{maaSPlatform.maaSPlatformId},
+                #{maaSPlatform.maaSPlatformName},
+                #{maaSPlatform.operatorId},
+                #{maaSPlatform.operatorName})
+    </insert>
+    <insert id="insertModel">
+        insert into model_information(model_id,model_name,maas_platform_id)
+        values
+        <foreach collection="modelInformationList" index="index" item="item" separator=",">
+            (#{item.modelId},
+             #{item.modelName},
+             #{maaSPlatformId})
+        </foreach>
+    </insert>
+    <select id="getMaaSPlatforms" resultType="org.onap.usecaseui.llmadaptation.bean.MaaSPlatform">
+        select maas_platform_id as maaSPlatformId,
+               maas_platform_name as maaSPlatformName,
+               operator_id as operatorId,
+               operator_name as operatorName
+        from maas_platform
+    </select>
+    <select id="getModelList" resultType="org.onap.usecaseui.llmadaptation.bean.ModelInformation">
+        select model_id as modelId,
+               model_name as modelName
+        from model_information where maas_platform_id = #{maaSPlatformId}
+    </select>
+
+    <insert id="insertCookie">
+        INSERT INTO cookie (maas_platform_name, cookie)
+        VALUES (#{name}, #{cookie})
+            ON CONFLICT (maas_platform_name)
+            DO UPDATE SET cookie = EXCLUDED.cookie;
+    </insert>
+
+    <select id="getCookie" resultType="java.lang.String">
+        select cookie from cookie where maas_platform_name = #{name}
+    </select>
+
+</mapper>
