@@ -42,10 +42,5 @@ create table if not exists application(
     temperature float,
     top_p float,
     opening_remarks varchar(255)
-);
-
-create table if not exists cookie(
-    maas_platform_name varchar(255) primary key,
-    cookie text
 )
 

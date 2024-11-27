@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.FastGptDatasetMapper">
+    <insert id="insertKnowledgeBaseRecord">
+        insert into knowledge_base(knowledge_base_id,
+                                   knowledge_base_name,
+                                   knowledge_base_description,
+                                   operator_id,
+                                   operator_name,
+                                   maas_platform_id,
+                                   maas_platform_name,
+                                   update_time)
+        values (#{knowledgeBase.knowledgeBaseId},
+                #{knowledgeBase.knowledgeBaseName},
+                #{knowledgeBase.knowledgeBaseDescription},
+                #{knowledgeBase.operatorId},
+                #{knowledgeBase.operatorName},
+                #{knowledgeBase.maaSPlatformId},
+                #{knowledgeBase.maaSPlatformName},
+                to_timestamp(#{knowledgeBase.updateTime},'yyyy-MM-dd HH24:mi:ss'))
+    </insert>
+    <insert id="insertFileName">
+        insert into file(file_id,file_name,knowledge_base_id)
+        values (#{fileId},#{fileName},#{knowledgeBaseId})
+    </insert>
+    <select id="getKnowledgeBaseRecords" resultType="org.onap.usecaseui.llmadaptation.bean.KnowledgeBase">
+        select knowledge_base_id as knowledgeBaseId,
+               knowledge_base_name as knowledgeBaseName,
+               knowledge_base_description as knowledgeBaseDescription,
+               operator_id as operatorId,
+               operator_name as operatorName,
+               maas_platform_id as maaSPlatformId,
+               maas_platform_name as maaSPlatformName,
+               to_char(update_time,'yyyy-mm-dd HH24:mi:ss') as updateTime
+        from knowledge_base
+    </select>
+    <select id="getFileNamesByKnowledgeBaseId" resultType="java.lang.String">
+        select file_name from file where knowledge_base_id = #{knowledgeBaseId}
+    </select>
+    <select id="getKnowledgeBaseRecordById" resultType="org.onap.usecaseui.llmadaptation.bean.KnowledgeBase">
+        select knowledge_base_id as knowledgeBaseId,
+               knowledge_base_name as knowledgeBaseName,
+               knowledge_base_description as knowledgeBaseDescription,
+               operator_id as operatorId,
+               operator_name as operatorName,
+               maas_platform_id as maaSPlatformId,
+               maas_platform_name as maaSPlatformName,
+               to_char(update_time,'yyyy-mm-dd HH24:mi:ss') as updateTime
+        from knowledge_base
+        where  knowledge_base_id = #{knowledgeBaseId}
+    </select>
+    <select id="getKnowledgeBaseByMaaSId" resultType="org.onap.usecaseui.llmadaptation.bean.KnowledgeBase">
+        select knowledge_base_id as knowledgeBaseId,
+               knowledge_base_name as knowledgeBaseName
+        from knowledge_base
+        where  maas_platform_id = #{maaSPlatformId}
+    </select>
+
+    <delete id="deleteKnowledgeBaseByUuid">
+        delete from knowledge_base where knowledge_base_id = #{knowledgeBaseId}
+    </delete>
+    <delete id="deleteFileById">
+        delete from file where knowledge_base_id = #{knowledgeBaseId}
+    </delete>
+
+</mapper>
