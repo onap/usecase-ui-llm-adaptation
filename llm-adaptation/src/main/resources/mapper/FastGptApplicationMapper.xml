@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.FastGptApplicationMapper">
+    <insert id="insertApplication">
+        insert into application(application_id,
+                                application_name,
+                                application_description,
+                                application_type,
+                                knowledge_base_id,
+                                model_id,
+                                model_name,
+                                prompt,
+                                temperature,
+                                top_p,
+                                opening_remarks
+                                )
+        values (#{application.applicationId},
+                #{application.applicationName},
+                #{application.applicationDescription},
+                #{application.applicationType},
+                #{application.knowledgeBaseId},
+                #{application.largeModelId},
+                #{application.largeModelName},
+                #{application.prompt},
+                #{application.temperature},
+                #{application.top_p},
+                #{application.openingRemarks})
+    </insert>
+    <delete id="deleteApplicationById">
+        delete from application where application_id = #{applicationId}
+    </delete>
+
+
+    <select id="getAllApplication" resultType="org.onap.usecaseui.llmadaptation.bean.Application">
+        select application_id as applicationId,
+               application_name as applicationName,
+               application_description as applicationDescription,
+               application_type as applicationType,
+               knowledge_base_id as knowledgeBaseId,
+               model_id as largeModelId,
+               model_name as largeModelName,
+               prompt as prompt,
+               temperature as temperature,
+               top_p as top_p,
+               opening_remarks as openingRemarks
+        from application
+
+
+    </select>
+    <select id="getApplicationById" resultType="org.onap.usecaseui.llmadaptation.bean.Application">
+        select application_id as applicationId,
+               application_name as applicationName,
+               application_description as applicationDescription,
+               application_type as applicationType,
+               knowledge_base_id as knowledgeBaseId,
+               model_id as largeModelId,
+               model_name as largeModelName,
+               prompt as prompt,
+               temperature as temperature,
+               top_p as top_p,
+               opening_remarks as openingRemarks
+        from application where application_id = #{applicationId}
+    </select>
+</mapper>
