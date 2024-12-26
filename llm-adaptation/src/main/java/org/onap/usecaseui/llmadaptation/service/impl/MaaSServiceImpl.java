@@ -1,21 +1,13 @@
 package org.onap.usecaseui.llmadaptation.service.impl;
 
-import com.alibaba.fastjson2.JSONObject;
-import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.onap.usecaseui.llmadaptation.bean.MaaSPlatform;
-import org.onap.usecaseui.llmadaptation.bean.ModelInformation;
-import org.onap.usecaseui.llmadaptation.bean.Operator;
-import org.onap.usecaseui.llmadaptation.bean.fastgpt.CreateDataSetResponse;
+import org.onap.usecaseui.llmadaptation.bean.*;
 import org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper;
 import org.onap.usecaseui.llmadaptation.service.MaaSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,5 +40,23 @@ public class MaaSServiceImpl implements MaaSService {
             operatorList.add(operator);
         });
         return operatorList;
+    }
+
+    @Override
+    public ServiceResult registerMaaSPlatform(MaaSPlatform maaSPlatform) {
+        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(maaSPlatform.getMaaSPlatformId());
+        if (maaSPlatformById != null) {
+            return new ServiceResult(new ResultHeader(500, maaSPlatform.getMaaSPlatformName() + "already exists"));
+        }
+        List<ModelInformation> modelList = maaSPlatform.getModelList();
+        for (ModelInformation model : modelList) {
+            ModelInformation modelById = maaSPlatformMapper.getModelById(model.getModelId());
+            if (modelById != null) {
+                return new ServiceResult(new ResultHeader(500, model.getModelName() + " already exists"));
+            }
+        }
+        maaSPlatformMapper.insertMaaSPlatform(maaSPlatform);
+        maaSPlatformMapper.insertModel(maaSPlatform.getMaaSPlatformId(), maaSPlatform.getModelList());
+        return new ServiceResult(new ResultHeader(200, "register success"));
     }
 }

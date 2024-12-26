@@ -1,20 +1,18 @@
 package org.onap.usecaseui.llmadaptation.service.impl;
 
-import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.onap.usecaseui.llmadaptation.bean.KnowledgeBase;
 import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
 import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
-import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateCollectionParam;
-import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetParam;
-import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetResponse;
+import org.onap.usecaseui.llmadaptation.bean.bisheng.BiShengCreateDatasetResponse;
+import org.onap.usecaseui.llmadaptation.bean.bisheng.ProcessFileResponse;
+import org.onap.usecaseui.llmadaptation.constant.BiShengConstant;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
-import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
 import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
 import org.onap.usecaseui.llmadaptation.mapper.DatasetMapper;
-import org.onap.usecaseui.llmadaptation.service.FastGptDatasetService;
+import org.onap.usecaseui.llmadaptation.service.BiShengDatasetService;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -28,17 +26,19 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 @Slf4j
 @Service
-public class FastGptDatasetServiceImpl implements FastGptDatasetService {
-    @Autowired
-    private DatasetMapper datasetMapper;
+public class BiShengDatasetServiceImpl implements BiShengDatasetService {
 
     @Autowired
     private WebClient webClient;
+
+    @Autowired
+    private DatasetMapper datasetMapper;
 
     @Autowired
     private ServerConstant serverConstant;
@@ -47,50 +47,41 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
     public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData) {
         KnowledgeBase knowledgeBase = JSONObject.parseObject(metaData, KnowledgeBase.class);
         knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
-        CreateDataSetParam dataSetParam = new CreateDataSetParam();
-        dataSetParam.setAgentModel(serverConstant.getFastGptModel());
-        dataSetParam.setType("dataset");
-        dataSetParam.setAvatar("core/dataset/commonDatasetColor");
-        dataSetParam.setVectorModel("m3e");
-        dataSetParam.setIntro(knowledgeBase.getKnowledgeBaseDescription());
-        dataSetParam.setName(knowledgeBase.getKnowledgeBaseName());
+        JSONObject createParam = new JSONObject();
+        createParam.put("description", knowledgeBase.getKnowledgeBaseDescription());
+        createParam.put("model", serverConstant.getBiShengModel());
+        createParam.put("name", knowledgeBase.getKnowledgeBaseName());
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.CREATE_DATASET_URL)
+                .uri(serverConstant.getBiShengServer() + BiShengConstant.CREATE_DATASET_URL)
                 .contentType(APPLICATION_JSON)
-                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
-                .bodyValue(dataSetParam)
+                .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
+                .bodyValue(createParam)
                 .retrieve()
-                .bodyToMono(CreateDataSetResponse.class)
+                .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() == 200) {
-                        String knowledgeBaseId = String.valueOf(response.getData());
-                        return fileParts.flatMap(filePart -> uploadFile(filePart, knowledgeBaseId))
-                                .then(Mono.defer(() -> {
-                                    knowledgeBase.setKnowledgeBaseId(knowledgeBaseId);
-                                    datasetMapper.insertKnowledgeBaseRecord(knowledgeBase);
-                                    return Mono.just(new ServiceResult(new ResultHeader(200, "create success")));
-                                }))
-                                .onErrorResume(e -> {
-                                    log.error("Error occurred during file upload: {}", e.getMessage());
-                                    return Mono.just(new ServiceResult(new ResultHeader(500, "file upload failed")));
-                                });
-                    } else {
-                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getMessage())));
+                    if (response.getStatus_code() != 200) {
+                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatus_message())));
                     }
-                })
-                .onErrorResume(e -> {
+                    int knowledgeBaseId = response.getData().getIntValue("id");
+                    return fileParts.flatMap(filePart -> processFile(filePart, knowledgeBaseId))
+                            .then(Mono.defer(() -> {
+                                knowledgeBase.setKnowledgeBaseId(String.valueOf(knowledgeBaseId));
+                                datasetMapper.insertKnowledgeBaseRecord(knowledgeBase);
+                                return Mono.just(new ServiceResult(new ResultHeader(200, "create success")));
+                            })).onErrorResume(e -> {
+                                log.error("Error occurred during file upload: {}", e.getMessage());
+                                return Mono.just(new ServiceResult(new ResultHeader(500, "file upload failed")));
+                            });
+                }).onErrorResume(e -> {
                     log.error("Error occurred while creating dataset: {}", e.getMessage());
                     return Mono.just(new ServiceResult(new ResultHeader(500, "create failed")));
                 });
     }
 
-    private Mono<Void> uploadFile(FilePart filePart, String knowledgeBaseId) {
+    private Mono<Void> processFile(FilePart filePart, int knowledgeBaseId) {
         String filename = filePart.filename();
         Flux<DataBuffer> content = filePart.content();
-
         MultipartBodyBuilder builder = new MultipartBodyBuilder();
-        builder.part("metadata", "", APPLICATION_JSON);
-        builder.part("bucketName", "dataset");
         builder.asyncPart("file", content, DataBuffer.class)
                 .headers(headers -> {
                     ContentDisposition contentDisposition = ContentDisposition
@@ -101,63 +92,51 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                     headers.setContentDisposition(contentDisposition);
                     headers.setContentType(MediaType.TEXT_PLAIN);
                 });
-
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.UPLOAD_FILE_URL)
+                .uri(serverConstant.getBiShengServer() + BiShengConstant.UPLOAD_FILE_URL)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
+                .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .body(BodyInserters.fromMultipartData(builder.build()))
                 .retrieve()
-                .bodyToMono(CreateDataSetResponse.class)
+                .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() != 200) {
+                    if (response.getStatus_code() != 200) {
                         log.error("response is {}", response);
                         return Mono.empty();
                     }
-                    Object data = response.getData();
-                    JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(data));
-                    String fileId = jsonObject.getString("fileId");
-                    CreateCollectionParam createCollectionParam = getCreateCollectionParam(knowledgeBaseId, fileId);
-
+                    String filePath = response.getData().getString("file_path");
+                    JSONObject processParam = new JSONObject();
+                    processParam.put("knowledge_id", knowledgeBaseId);
+                    JSONArray jsonArray = new JSONArray();
+                    JSONObject jsonObject = new JSONObject();
+                    jsonObject.put("file_path", filePath);
+                    jsonArray.add(jsonObject);
+                    processParam.put("file_list", jsonArray);
                     return webClient.post()
-                            .uri(serverConstant.getFastGptServer() + FastGptConstant.CRATE_COLLECTION_URL)
+                            .uri(serverConstant.getBiShengServer() + BiShengConstant.PROCESS_FILE_URL)
                             .contentType(APPLICATION_JSON)
-                            .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
-                            .bodyValue(createCollectionParam)
+                            .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
+                            .bodyValue(processParam)
                             .retrieve()
-                            .bodyToMono(CreateDataSetResponse.class)
-                            .flatMap(responseData -> {
-                                if (responseData.getCode() == 200) {
-                                    datasetMapper.insertFileName(fileId, filename, knowledgeBaseId);
+                            .bodyToMono(ProcessFileResponse.class).flatMap(lastResponse -> {
+                                if (lastResponse.getStatus_code() == 200) {
+                                    String fileId = UUID.randomUUID().toString();
+                                    datasetMapper.insertFileName(fileId, filename, String.valueOf(knowledgeBaseId));
                                 }
                                 return Mono.empty();
                             });
                 });
     }
 
-    @NotNull
-    private static CreateCollectionParam getCreateCollectionParam(String knowledgeBaseId, String fileId) {
-        CreateCollectionParam createCollectionParam = new CreateCollectionParam();
-        createCollectionParam.setTrainingType("chunk");
-        createCollectionParam.setDatasetId(knowledgeBaseId);
-        createCollectionParam.setChunkSize(700);
-        createCollectionParam.setChunkSplitter("");
-        createCollectionParam.setFileId(fileId);
-        createCollectionParam.setName("");
-        createCollectionParam.setQaPrompt("");
-        return createCollectionParam;
-    }
-
     @Override
     public Mono<ServiceResult> removeDataset(String knowledgeBaseId) {
-        String url = serverConstant.getFastGptServer() + FastGptConstant.DELETE_DATASET_URL + knowledgeBaseId;
         return webClient.delete()
-                .uri(url)
-                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
+                .uri(serverConstant.getBiShengServer() + BiShengConstant.DATASET_V2_URL + knowledgeBaseId)
+                .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .retrieve()
-                .bodyToMono(CreateDataSetResponse.class)
+                .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() == 200) {
+                    if (response.getStatus_code() == 200) {
                         return Mono.fromRunnable(() -> {
                             try {
                                 datasetMapper.deleteKnowledgeBaseByUuid(knowledgeBaseId);
@@ -167,7 +146,7 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                             }
                         }).then(Mono.just(new ServiceResult(new ResultHeader(200, "delete success"))));
                     } else {
-                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
+                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatus_message())));
                     }
                 })
                 .onErrorResume(e -> {
@@ -183,26 +162,25 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
             return Mono.just(new ServiceResult(new ResultHeader(500, "dataset is not exist")));
         }
         JSONObject updateParam = new JSONObject();
-        updateParam.put("id", knowledgeBase.getKnowledgeBaseId());
+        updateParam.put("knowledge_id", knowledgeBase.getKnowledgeBaseId());
         updateParam.put("name", knowledgeBase.getKnowledgeBaseName());
-        updateParam.put("intro", knowledgeBase.getKnowledgeBaseDescription());
-        updateParam.put("avatar", "core/dataset/commonDatasetColor");
+        updateParam.put("description", knowledgeBase.getKnowledgeBaseDescription());
+        updateParam.put("model", serverConstant.getBiShengModel());
 
         return webClient.put()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.UPDATE_DATASET_URL)
+                .uri(serverConstant.getBiShengServer() + BiShengConstant.DATASET_V2_URL)
                 .contentType(APPLICATION_JSON)
-                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .bodyValue(updateParam)
                 .retrieve()
-                .bodyToMono(CreateDataSetResponse.class)
+                .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() == 200) {
+                    if (response.getStatus_code() == 200) {
                         return Mono.fromRunnable(() -> {
                             knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
                             datasetMapper.updateKnowledgeBase(knowledgeBase);
                         }).then(Mono.just(new ServiceResult(new ResultHeader(200, "update success"))));
                     } else {
-                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
+                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatus_message())));
                     }
                 })
                 .onErrorResume(e -> {

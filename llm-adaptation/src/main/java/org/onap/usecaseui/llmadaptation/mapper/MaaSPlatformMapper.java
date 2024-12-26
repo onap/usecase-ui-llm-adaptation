@@ -18,4 +18,8 @@ public interface MaaSPlatformMapper {
     List<MaaSPlatform> getMaaSPlatforms();
 
     List<ModelInformation> getModelList(@Param(value = "maaSPlatformId") String maaSPlatformId);
+
+    MaaSPlatform getMaaSPlatformById(@Param(value = "maaSPlatformId") String maaSPlatformId);
+
+    ModelInformation getModelById(@Param(value = "modelId") String modelId);
 }

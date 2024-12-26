@@ -1,6 +1,13 @@
 server:
   port: 8084
-
+fastGpt:
+  server: http://172.22.16.126:3000
+  model: qwen2:7b
+  maaSType: fastGpt
+biSheng:
+  server: http://172.22.16.127:3001
+  model: 3
+  maaSType: biSheng
 spring:
   main:
     allow-circular-references: true
@@ -21,4 +28,3 @@ mybatis:
 logging:
   level:
     org.springframework.web: DEBUG
-    com.yourpackage: TRACE

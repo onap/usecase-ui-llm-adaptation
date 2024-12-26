@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.FastGptApplicationMapper">
+<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper">
     <insert id="insertApplication">
         insert into application(application_id,
                                 application_name,
@@ -63,4 +63,13 @@
                opening_remarks as openingRemarks
         from application where application_id = #{applicationId}
     </select>
+
+    <update id="updateApplication">
+        update application
+        <trim prefix="set" suffixOverrides=",">
+            <if test="application.applicationName != null">application_name = #{application.applicationName},</if>
+            <if test="application.applicationDescription != null">application_description = #{application.applicationDescription},</if>
+        </trim>
+        where application_id = #{application.applicationId}
+    </update>
 </mapper>

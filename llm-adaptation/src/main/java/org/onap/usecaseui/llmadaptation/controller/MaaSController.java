@@ -2,12 +2,10 @@ package org.onap.usecaseui.llmadaptation.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.onap.usecaseui.llmadaptation.bean.*;
-import org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper;
 import org.onap.usecaseui.llmadaptation.service.MaaSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -15,9 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/usecaseui-llm-adaptation/v1/")
 public class MaaSController {
-
-    @Autowired
-    private MaaSPlatformMapper maaSPlatformMapper;
 
     @Autowired
     private MaaSService maaSService;
@@ -30,9 +25,6 @@ public class MaaSController {
 
     @PostMapping(value = "/maas/register", produces = MediaType.APPLICATION_JSON_VALUE)
     public ServiceResult registerMaaSPlatform(@RequestBody MaaSPlatform maaSPlatform) {
-        maaSPlatformMapper.insertMaaSPlatform(maaSPlatform);
-        maaSPlatformMapper.insertModel(maaSPlatform.getMaaSPlatformId(), maaSPlatform.getModelList());
-        return new ServiceResult(new ResultHeader(200, "success"));
+        return maaSService.registerMaaSPlatform(maaSPlatform);
     }
-
 }
