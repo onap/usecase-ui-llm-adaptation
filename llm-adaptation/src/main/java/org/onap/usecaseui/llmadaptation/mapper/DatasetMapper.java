@@ -7,7 +7,7 @@ import org.onap.usecaseui.llmadaptation.bean.KnowledgeBase;
 import java.util.List;
 
 @Mapper
-public interface FastGptDatasetMapper {
+public interface DatasetMapper {
     int insertKnowledgeBaseRecord(@Param(value = "knowledgeBase") KnowledgeBase knowledgeBase);
 
     int insertFileName(@Param(value = "fileId") String fileId,@Param(value = "fileName") String fileName,@Param(value = "knowledgeBaseId") String knowledgeBaseId);
@@ -23,4 +23,6 @@ public interface FastGptDatasetMapper {
     List<KnowledgeBase> getKnowledgeBaseByMaaSId(@Param(value = "maaSPlatformId") String maaSPlatformId);
 
     int deleteFileById(@Param(value = "knowledgeBaseId") String knowledgeBaseId);
+
+    int updateKnowledgeBase(@Param(value = "knowledgeBase") KnowledgeBase knowledgeBase);
 }

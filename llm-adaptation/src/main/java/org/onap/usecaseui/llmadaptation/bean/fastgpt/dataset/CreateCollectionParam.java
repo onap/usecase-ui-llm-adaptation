@@ -1,4 +1,4 @@
-package org.onap.usecaseui.llmadaptation.bean.fastgpt;
+package org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset;
 
 import lombok.Data;
 

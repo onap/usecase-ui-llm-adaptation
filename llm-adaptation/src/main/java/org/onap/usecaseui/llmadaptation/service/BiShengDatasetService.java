@@ -6,7 +6,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public interface FastGptDatasetService {
+public interface BiShengDatasetService {
     Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData);
 
     Mono<ServiceResult> removeDataset(String knowledgeBaseId);

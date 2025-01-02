@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.FastGptDatasetMapper">
+<mapper namespace="org.onap.usecaseui.llmadaptation.mapper.DatasetMapper">
     <insert id="insertKnowledgeBaseRecord">
         insert into knowledge_base(knowledge_base_id,
                                    knowledge_base_name,
@@ -65,4 +65,13 @@
         delete from file where knowledge_base_id = #{knowledgeBaseId}
     </delete>
 
+    <update id="updateKnowledgeBase">
+        update knowledge_base
+        <trim prefix="set" suffixOverrides=",">
+            <if test="knowledgeBase.knowledgeBaseDescription != null">knowledge_base_description = #{knowledgeBase.knowledgeBaseDescription},</if>
+            <if test="knowledgeBase.knowledgeBaseName != null">knowledge_base_name = #{knowledgeBase.knowledgeBaseName},</if>
+            <if test="knowledgeBase.updateTime != null">update_time = to_timestamp(#{knowledgeBase.updateTime},'yyyy-MM-dd HH24:mi:ss'),</if>
+        </trim>
+        where knowledge_base_id = #{knowledgeBase.knowledgeBaseId}
+    </update>
 </mapper>

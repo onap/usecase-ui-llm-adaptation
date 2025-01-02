@@ -16,6 +16,8 @@ public class MaaSPlatform {
 
     private String operatorName;
 
+    private String maaSType;
+
     private List<ModelInformation> modelList;
 
 }

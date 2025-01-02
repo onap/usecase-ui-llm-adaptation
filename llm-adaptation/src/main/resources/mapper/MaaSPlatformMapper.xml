@@ -4,31 +4,47 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper">
     <insert id="insertMaaSPlatform">
-        insert into maas_platform(maas_platform_id,maas_platform_name,operator_id,operator_name)
+        insert into maas_platform(maas_platform_id,maas_platform_name,operator_id,operator_name,maas_type)
         values (#{maaSPlatform.maaSPlatformId},
                 #{maaSPlatform.maaSPlatformName},
                 #{maaSPlatform.operatorId},
-                #{maaSPlatform.operatorName})
+                #{maaSPlatform.operatorName},
+                #{maaSPlatform.maaSType})
     </insert>
     <insert id="insertModel">
         insert into model_information(model_id,model_name,maas_platform_id)
         values
         <foreach collection="modelInformationList" index="index" item="item" separator=",">
             (#{item.modelId},
-             #{item.modelName},
-             #{maaSPlatformId})
+            #{item.modelName},
+            #{maaSPlatformId})
         </foreach>
     </insert>
     <select id="getMaaSPlatforms" resultType="org.onap.usecaseui.llmadaptation.bean.MaaSPlatform">
         select maas_platform_id as maaSPlatformId,
                maas_platform_name as maaSPlatformName,
                operator_id as operatorId,
-               operator_name as operatorName
+               operator_name as operatorName,
+               maas_type as maaSType
         from maas_platform
     </select>
     <select id="getModelList" resultType="org.onap.usecaseui.llmadaptation.bean.ModelInformation">
         select model_id as modelId,
                model_name as modelName
         from model_information where maas_platform_id = #{maaSPlatformId}
+    </select>
+    <select id="getMaaSPlatformById" resultType="org.onap.usecaseui.llmadaptation.bean.MaaSPlatform">
+        select maas_platform_id as maaSPlatformId,
+               maas_platform_name as maaSPlatformName,
+               operator_id as operatorId,
+               operator_name as operatorName,
+               maas_type as maaSType
+        from maas_platform
+        where maas_platform_id = #{maaSPlatformId}
+    </select>
+    <select id="getModelById" resultType="org.onap.usecaseui.llmadaptation.bean.ModelInformation">
+        select model_id as modelId,
+               model_name as modelName
+        from model_information where model_id = #{modelId}
     </select>
 </mapper>

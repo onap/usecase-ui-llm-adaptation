@@ -4,7 +4,8 @@ create table if not exists maas_platform(
     maas_platform_id varchar(255) primary key,
     maas_platform_name varchar(255),
     operator_id varchar(255),
-    operator_name varchar(255)
+    operator_name varchar(255),
+    maas_type varchar(255)
 );
 
 create table if not exists model_information(
