@@ -4,12 +4,14 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper">
     <insert id="insertMaaSPlatform">
-        insert into maas_platform(maas_platform_id,maas_platform_name,operator_id,operator_name,maas_type)
+        insert into maas_platform(maas_platform_id,maas_platform_name,operator_id,operator_name,maas_type,server_ip,vector_model)
         values (#{maaSPlatform.maaSPlatformId},
                 #{maaSPlatform.maaSPlatformName},
                 #{maaSPlatform.operatorId},
                 #{maaSPlatform.operatorName},
-                #{maaSPlatform.maaSType})
+                #{maaSPlatform.maaSType},
+                #{maaSPlatform.serverIp},
+                #{maaSPlatform.vectorModel})
     </insert>
     <insert id="insertModel">
         insert into model_information(model_id,model_name,maas_platform_id)
@@ -25,7 +27,9 @@
                maas_platform_name as maaSPlatformName,
                operator_id as operatorId,
                operator_name as operatorName,
-               maas_type as maaSType
+               maas_type as maaSType,
+               server_ip as serverIp,
+               vector_model as vectorModel
         from maas_platform
     </select>
     <select id="getModelList" resultType="org.onap.usecaseui.llmadaptation.bean.ModelInformation">
@@ -38,7 +42,9 @@
                maas_platform_name as maaSPlatformName,
                operator_id as operatorId,
                operator_name as operatorName,
-               maas_type as maaSType
+               maas_type as maaSType,
+               server_ip as serverIp,
+               vector_model as vectorModel
         from maas_platform
         where maas_platform_id = #{maaSPlatformId}
     </select>

@@ -7,11 +7,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface BiShengApplicationService {
-    Mono<ServiceResult> createApplication(Application application);
+    Mono<ServiceResult> createApplication(Application application,  String serverIp);
 
-    Flux<String> chat(JSONObject question);
+    Flux<String> chat(JSONObject question, String serverIp);
 
-    Mono<ServiceResult> removeApplication(String applicationId);
+    Mono<ServiceResult> removeApplication(String applicationId, String serverIp);
 
-    Mono<ServiceResult> editApplication(Application application);
+    Mono<ServiceResult> editApplication(Application application, String serverIp);
 }

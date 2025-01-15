@@ -1,7 +1,7 @@
 package org.onap.usecaseui.llmadaptation.constant;
 
 public class FastGptConstant {
-    public static final String COOKIE_VALUE = "fastgpt_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzFmNTQ2MGM4Zjc3YTFjMGYzZTUyYmEiLCJ0ZWFtSWQiOiI2NzFmNTQ2MGM4Zjc3YTFjMGYzZTUyYzAiLCJ0bWJJZCI6IjY3MWY1NDYwYzhmNzdhMWMwZjNlNTJjMiIsImlzUm9vdCI6dHJ1ZSwiZXhwIjoxNzM1NTIzMzY0LCJpYXQiOjE3MzQ5MTg1NjR9.GPomC4qSnz3ADnEIo4sgl8jROaCsomEh9J6kfVAZuBQ";
+    public static final String COOKIE_VALUE = "fastgpt_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzFmNTQ2MGM4Zjc3YTFjMGYzZTUyYmEiLCJ0ZWFtSWQiOiI2NzFmNTQ2MGM4Zjc3YTFjMGYzZTUyYzAiLCJ0bWJJZCI6IjY3MWY1NDYwYzhmNzdhMWMwZjNlNTJjMiIsImlzUm9vdCI6dHJ1ZSwiZXhwIjoxOTU2NTQyOTczLCJpYXQiOjE3MzU3OTA5NzN9.T0RPpbST7FuRTusBkd1HzolfqNsIu7ZzvcrZOmq-mN0";
 
     public static final String CREATE_DATASET_URL = "/api/core/dataset/create";
 
@@ -26,4 +26,10 @@ public class FastGptConstant {
     public static final String APPLICATION_CHAT_URL = "/api/v1/chat/completions";
 
     public static final String DELETE_APPLICATION = "/api/core/app/del?appId=";
+
+    public static final String FAST_GPT = "fastGpt";
+
+    public static final String DELETE_FILE_URL = "/api/core/dataset/collection/delete?id=";
+
+    public static final String GET_COLLECTION_LIST_URL = "/api/core/dataset/collection/list";
 }

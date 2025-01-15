@@ -2,11 +2,9 @@ package org.onap.usecaseui.llmadaptation.service.impl;
 
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import org.onap.usecaseui.llmadaptation.bean.KnowledgeBase;
-import org.onap.usecaseui.llmadaptation.bean.MaaSPlatform;
-import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
-import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
+import org.onap.usecaseui.llmadaptation.bean.*;
+import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
+import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.mapper.DatasetMapper;
 import org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper;
 import org.onap.usecaseui.llmadaptation.service.BiShengDatasetService;
@@ -38,7 +36,7 @@ public class DatasetServiceImpl implements DatasetService {
     private MaaSPlatformMapper maaSPlatformMapper;
 
     @Autowired
-    private ServerConstant serverConstant;
+    private ApplicationMapper applicationMapper;
 
     @Override
     public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData) {
@@ -52,23 +50,24 @@ public class DatasetServiceImpl implements DatasetService {
         }
         MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(knowledgeBase.getMaaSPlatformId());
         String maaSType = maaSPlatformById.getMaaSType();
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptDatasetService.createDataset(fileParts, metaData);
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptDatasetService.createDataset(fileParts, metaData, maaSPlatformById);
         }
-        return biShengDatasetService.createDataset(fileParts, metaData);
+        return biShengDatasetService.createDataset(fileParts, metaData, maaSPlatformById);
     }
 
     @Override
     public Mono<ServiceResult> removeDataset(String knowledgeBaseId) {
-        KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(knowledgeBaseId);
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(knowledgeBaseRecordById.getMaaSPlatformId());
-        String maaSType = maaSPlatformById.getMaaSType();
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptDatasetService.removeDataset(knowledgeBaseId);
+        List<Application> applicationByDatasetId = applicationMapper.getApplicationByDatasetId(knowledgeBaseId);
+        if (!CollectionUtils.isEmpty(applicationByDatasetId)) {
+            return Mono.just(new ServiceResult(new ResultHeader(500, "This database is currently in use")));
         }
-        return biShengDatasetService.removeDataset(knowledgeBaseId);
+        MaaSPlatform maaSPlatformById = getMaaSPlatform(knowledgeBaseId);
+        String maaSType = maaSPlatformById.getMaaSType();
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptDatasetService.removeDataset(knowledgeBaseId, maaSPlatformById.getServerIp());
+        }
+        return biShengDatasetService.removeDataset(knowledgeBaseId, maaSPlatformById.getServerIp());
     }
 
     @Override
@@ -79,8 +78,8 @@ public class DatasetServiceImpl implements DatasetService {
         }
 
         knowledgeBaseRecords.forEach(knowledgeBase -> {
-            List<String> fileNamesByKnowledgeBaseId = datasetMapper.getFileNamesByKnowledgeBaseId(knowledgeBase.getKnowledgeBaseId());
-            knowledgeBase.setFilesName(fileNamesByKnowledgeBaseId);
+            List<File> fileNamesByKnowledgeBaseId = datasetMapper.getFileNamesByKnowledgeBaseId(knowledgeBase.getKnowledgeBaseId());
+            knowledgeBase.setFileList(fileNamesByKnowledgeBaseId);
         });
         return new ServiceResult(new ResultHeader(200, "success"), knowledgeBaseRecords);
     }
@@ -91,21 +90,47 @@ public class DatasetServiceImpl implements DatasetService {
         if (knowledgeBase == null) {
             return new ServiceResult(new ResultHeader(500, "get dataset failed"));
         }
-        List<String> fileNamesByKnowledgeBaseId = datasetMapper.getFileNamesByKnowledgeBaseId(knowledgeBase.getKnowledgeBaseId());
-        knowledgeBase.setFilesName(fileNamesByKnowledgeBaseId);
-
+        List<File> fileNamesByKnowledgeBaseId = datasetMapper.getFileNamesByKnowledgeBaseId(knowledgeBase.getKnowledgeBaseId());
+        knowledgeBase.setFileList(fileNamesByKnowledgeBaseId);
         return new ServiceResult(new ResultHeader(200, "success"), knowledgeBase);
     }
 
     @Override
     public Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase) {
-        KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(knowledgeBase.getKnowledgeBaseId());
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(knowledgeBaseRecordById.getMaaSPlatformId());
+        MaaSPlatform maaSPlatformById = getMaaSPlatform(knowledgeBase.getKnowledgeBaseId());
         String maaSType = maaSPlatformById.getMaaSType();
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptDatasetService.editDataset(knowledgeBase);
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptDatasetService.editDataset(knowledgeBase, maaSPlatformById);
         }
-        return biShengDatasetService.editDataset(knowledgeBase);
+        return biShengDatasetService.editDataset(knowledgeBase, maaSPlatformById);
+    }
+
+    @Override
+    public Mono<ServiceResult> uploadFiles(Flux<FilePart> fileParts, String metaData) {
+        KnowledgeBase knowledgeBase = JSONObject.parseObject(metaData, KnowledgeBase.class);
+        MaaSPlatform maaSPlatform = getMaaSPlatform(knowledgeBase.getKnowledgeBaseId());
+        String maaSType = maaSPlatform.getMaaSType();
+        String knowledgeBaseId = knowledgeBase.getKnowledgeBaseId();
+        String serverIp = maaSPlatform.getServerIp();
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptDatasetService.uploadFiles(fileParts,knowledgeBaseId, serverIp);
+        }
+        return biShengDatasetService.uploadFiles(fileParts, knowledgeBaseId, serverIp);
+    }
+
+    @Override
+    public Mono<ServiceResult> deleteFile(String fileId) {
+        String knowledgeId = datasetMapper.getKnowledgeIdByFileId(fileId);
+        MaaSPlatform maaSPlatform = getMaaSPlatform(knowledgeId);
+        String maaSType = maaSPlatform.getMaaSType();
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptDatasetService.deleteFile(fileId, maaSPlatform.getServerIp());
+        }
+        return biShengDatasetService.deleteFile(fileId, maaSPlatform.getServerIp());
+    }
+
+    private MaaSPlatform getMaaSPlatform(String knowledgeBaseId) {
+        KnowledgeBase knowledgeBase = datasetMapper.getKnowledgeBaseRecordById(knowledgeBaseId);
+        return maaSPlatformMapper.getMaaSPlatformById(knowledgeBase.getMaaSPlatformId());
     }
 }

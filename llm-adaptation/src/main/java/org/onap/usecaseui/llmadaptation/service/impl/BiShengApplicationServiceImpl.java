@@ -9,7 +9,6 @@ import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
 import org.onap.usecaseui.llmadaptation.bean.bisheng.BiShengCreateDatasetResponse;
 import org.onap.usecaseui.llmadaptation.constant.BiShengConstant;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
 import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.service.BiShengApplicationService;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
@@ -33,17 +32,14 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     @Autowired
     private WebClient webClient;
 
-    @Autowired
-    private ServerConstant serverConstant;
-
     @Override
-    public Mono<ServiceResult> createApplication(Application application) {
+    public Mono<ServiceResult> createApplication(Application application,  String serverIp) {
         JSONObject createParam = new JSONObject();
         createParam.put("logo", "");
         createParam.put("name", application.getApplicationName());
         createParam.put("prompt", application.getPrompt());
         return webClient.post()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.APPLICATION_URL)
+                .uri(serverIp + BiShengConstant.APPLICATION_URL)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .bodyValue(createParam)
@@ -55,6 +51,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                         return Mono.just(new ServiceResult(new ResultHeader(createResponse.getStatus_code(), createResponse.getStatus_message())));
                     }
                     String applicationId = data.getString("id");
+                    data.put("desc", application.getApplicationDescription());
                     data.put("model_name", application.getLargeModelId());
                     data.put("temperature", application.getTemperature() / 10);
                     List<Integer> list = new ArrayList<>();
@@ -63,7 +60,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                     data.put("guide_word", application.getOpeningRemarks());
                     data.put("update_time", TimeUtil.getNowTime());
                     return webClient.put()
-                            .uri(serverConstant.getBiShengServer() + BiShengConstant.APPLICATION_URL)
+                            .uri(serverIp + BiShengConstant.APPLICATION_URL)
                             .contentType(APPLICATION_JSON)
                             .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                             .bodyValue(data)
@@ -81,7 +78,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     }
 
     @Override
-    public Flux<String> chat(JSONObject question) {
+    public Flux<String> chat(JSONObject question, String serverIp) {
         JSONObject param = new JSONObject();
         param.put("model", question.getString("applicationId"));
         param.put("temperature", 0);
@@ -93,7 +90,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
         jsonArray.add(message);
         param.put("messages", jsonArray);
         return webClient.post()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.APPLICATION_CHAT_URL)
+                .uri(serverIp + BiShengConstant.APPLICATION_CHAT_URL)
                 .bodyValue(param)
                 .retrieve()
                 .bodyToFlux(String.class)
@@ -114,8 +111,8 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     }
 
     @Override
-    public Mono<ServiceResult> removeApplication(String applicationId) {
-        String url = serverConstant.getBiShengServer() + BiShengConstant.DELETE_APPLICATION + applicationId;
+    public Mono<ServiceResult> removeApplication(String applicationId, String serverIp) {
+        String url = serverIp + BiShengConstant.DELETE_APPLICATION + applicationId;
         return webClient.post()
                 .uri(url)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
@@ -141,8 +138,8 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     }
 
     @Override
-    public Mono<ServiceResult> editApplication(Application application) {
-        String url = serverConstant.getBiShengServer() + BiShengConstant.GET_APPLICATION_URL + application.getApplicationId();
+    public Mono<ServiceResult> editApplication(Application application, String serverIp) {
+        String url = serverIp + BiShengConstant.GET_APPLICATION_URL + application.getApplicationId();
         return webClient.get()
                 .uri(url)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
@@ -159,8 +156,12 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                     List<Integer> list = new ArrayList<>();
                     list.add(Integer.valueOf(application.getKnowledgeBaseId()));
                     data.put("knowledge_list", list);
+                    data.put("model_name", application.getLargeModelId());
+                    data.put("temperature", application.getTemperature() / 10);
+                    data.put("prompt",application.getPrompt());
+                    data.put("guide_word", application.getOpeningRemarks());
                     return webClient.put()
-                            .uri(serverConstant.getBiShengServer() + BiShengConstant.APPLICATION_URL)
+                            .uri(serverIp + BiShengConstant.APPLICATION_URL)
                             .contentType(APPLICATION_JSON)
                             .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                             .bodyValue(data)

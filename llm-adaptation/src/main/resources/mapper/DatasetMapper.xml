@@ -23,8 +23,12 @@
     </insert>
     <insert id="insertFileName">
         insert into file(file_id,file_name,knowledge_base_id)
-        values (#{fileId},#{fileName},#{knowledgeBaseId})
+        values
+        <foreach collection="files" index="index" item="item" separator=",">
+            (#{item.fileId}, #{item.fileName}, #{knowledgeBaseId})
+        </foreach>
     </insert>
+
     <select id="getKnowledgeBaseRecords" resultType="org.onap.usecaseui.llmadaptation.bean.KnowledgeBase">
         select knowledge_base_id as knowledgeBaseId,
                knowledge_base_name as knowledgeBaseName,
@@ -36,9 +40,7 @@
                to_char(update_time,'yyyy-mm-dd HH24:mi:ss') as updateTime
         from knowledge_base
     </select>
-    <select id="getFileNamesByKnowledgeBaseId" resultType="java.lang.String">
-        select file_name from file where knowledge_base_id = #{knowledgeBaseId}
-    </select>
+
     <select id="getKnowledgeBaseRecordById" resultType="org.onap.usecaseui.llmadaptation.bean.KnowledgeBase">
         select knowledge_base_id as knowledgeBaseId,
                knowledge_base_name as knowledgeBaseName,
@@ -57,6 +59,9 @@
         from knowledge_base
         where  maas_platform_id = #{maaSPlatformId}
     </select>
+    <select id="getFileNamesByKnowledgeBaseId" resultType="org.onap.usecaseui.llmadaptation.bean.File">
+        select file_id as fileId,file_name as fileName from file where knowledge_base_id = #{knowledgeBaseId}
+    </select>
 
     <delete id="deleteKnowledgeBaseByUuid">
         delete from knowledge_base where knowledge_base_id = #{knowledgeBaseId}
@@ -74,4 +79,12 @@
         </trim>
         where knowledge_base_id = #{knowledgeBase.knowledgeBaseId}
     </update>
+
+    <delete id="deleteFileByFileId">
+        delete from file where file_id = #{fileId}
+    </delete>
+
+    <select id="getKnowledgeIdByFileId" resultType="java.lang.String">
+        select knowledge_base_id from file where file_id = #{fileId}
+    </select>
 </mapper>

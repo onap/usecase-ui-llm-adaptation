@@ -58,4 +58,15 @@ public class DatasetController {
     public Mono<ServiceResult> editDataset(@RequestBody KnowledgeBase knowledgeBase) {
         return datasetService.editDataset(knowledgeBase);
     }
+
+    @PostMapping(value = "/file/upload", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ServiceResult> uploadFiles(@RequestPart("files") Flux<FilePart> fileParts,
+                                           @RequestPart("metaData") String metaData) {
+        return datasetService.uploadFiles(fileParts, metaData);
+    }
+
+    @DeleteMapping(value = "/file/delete/{fileId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ServiceResult> deleteFile(@PathVariable("fileId") String fileId) {
+        return datasetService.deleteFile(fileId);
+    }
 }

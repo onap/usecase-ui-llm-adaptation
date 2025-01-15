@@ -4,19 +4,18 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper">
     <insert id="insertApplication">
-        insert into application(application_id,
-                                application_name,
-                                application_description,
-                                application_type,
-                                knowledge_base_id,
-                                model_id,
-                                model_name,
-                                prompt,
-                                temperature,
-                                top_p,
-                                opening_remarks
-                                )
-        values (#{application.applicationId},
+        INSERT INTO application (application_id,
+                                 application_name,
+                                 application_description,
+                                 application_type,
+                                 knowledge_base_id,
+                                 model_id,
+                                 model_name,
+                                 prompt,
+                                 temperature,
+                                 top_p,
+                                 opening_remarks)
+        VALUES (#{application.applicationId},
                 #{application.applicationName},
                 #{application.applicationDescription},
                 #{application.applicationType},
@@ -27,6 +26,17 @@
                 #{application.temperature},
                 #{application.top_p},
                 #{application.openingRemarks})
+            ON CONFLICT (application_id) DO UPDATE SET
+            application_name = EXCLUDED.application_name,
+            application_description = EXCLUDED.application_description,
+            application_type = EXCLUDED.application_type,
+            knowledge_base_id = EXCLUDED.knowledge_base_id,
+            model_id = EXCLUDED.model_id,
+            model_name = EXCLUDED.model_name,
+            prompt = EXCLUDED.prompt,
+            temperature = EXCLUDED.temperature,
+            top_p = EXCLUDED.top_p,
+            opening_remarks = EXCLUDED.opening_remarks
     </insert>
     <delete id="deleteApplicationById">
         delete from application where application_id = #{applicationId}
@@ -72,4 +82,20 @@
         </trim>
         where application_id = #{application.applicationId}
     </update>
+
+    <select id="getApplicationByDatasetId" resultType="org.onap.usecaseui.llmadaptation.bean.Application">
+        select application_id as applicationId,
+               application_name as applicationName,
+               application_description as applicationDescription,
+               application_type as applicationType,
+               knowledge_base_id as knowledgeBaseId,
+               model_id as largeModelId,
+               model_name as largeModelName,
+               prompt as prompt,
+               temperature as temperature,
+               top_p as top_p,
+               opening_remarks as openingRemarks
+        from application where knowledge_base_id = #{knowledgeBaseId}
+    </select>
+
 </mapper>

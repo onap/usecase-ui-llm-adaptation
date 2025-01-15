@@ -22,5 +22,5 @@ public class KnowledgeBase {
 
     private String updateTime;
 
-    private List<String> filesName;
+    private List<File> fileList;
 }

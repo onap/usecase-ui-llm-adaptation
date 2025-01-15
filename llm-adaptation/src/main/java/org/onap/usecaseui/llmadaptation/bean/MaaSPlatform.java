@@ -18,6 +18,9 @@ public class MaaSPlatform {
 
     private String maaSType;
 
-    private List<ModelInformation> modelList;
+    private String serverIp;
 
+    private String vectorModel;
+
+    private List<ModelInformation> modelList;
 }
