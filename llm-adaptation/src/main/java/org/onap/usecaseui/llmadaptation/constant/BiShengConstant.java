@@ -18,4 +18,6 @@ public class BiShengConstant {
     public static final String DELETE_APPLICATION = "/api/v1/assistant/delete?assistant_id=";
 
     public static final String GET_APPLICATION_URL = "/api/v1/assistant/info/";
+
+    public static final String DELETE_FILE_URL = "/api/v1/knowledge/file/";
 }

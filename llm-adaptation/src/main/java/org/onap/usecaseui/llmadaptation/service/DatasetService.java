@@ -16,4 +16,8 @@ public interface DatasetService {
     ServiceResult geDatasetById(String knowledgeBaseId);
 
     Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase);
+
+    Mono<ServiceResult> uploadFiles(Flux<FilePart> fileParts, String metaData);
+
+    Mono<ServiceResult> deleteFile(String fileId);
 }

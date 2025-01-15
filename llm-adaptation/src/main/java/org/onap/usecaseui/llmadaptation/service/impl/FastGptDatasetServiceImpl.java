@@ -1,18 +1,16 @@
 package org.onap.usecaseui.llmadaptation.service.impl;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.onap.usecaseui.llmadaptation.bean.KnowledgeBase;
-import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
-import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
+import org.onap.usecaseui.llmadaptation.bean.*;
 import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateCollectionParam;
 import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetParam;
 import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetResponse;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
 import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
 import org.onap.usecaseui.llmadaptation.mapper.DatasetMapper;
 import org.onap.usecaseui.llmadaptation.service.FastGptDatasetService;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
@@ -29,6 +27,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 @Slf4j
@@ -40,22 +43,17 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
     @Autowired
     private WebClient webClient;
 
-    @Autowired
-    private ServerConstant serverConstant;
-
     @Override
-    public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData) {
+    public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData, MaaSPlatform maaSPlatform) {
         KnowledgeBase knowledgeBase = JSONObject.parseObject(metaData, KnowledgeBase.class);
         knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
         CreateDataSetParam dataSetParam = new CreateDataSetParam();
-        dataSetParam.setAgentModel(serverConstant.getFastGptModel());
+        dataSetParam.setAgentModel(maaSPlatform.getVectorModel());
         dataSetParam.setType("dataset");
-        dataSetParam.setAvatar("core/dataset/commonDatasetColor");
-        dataSetParam.setVectorModel("m3e");
         dataSetParam.setIntro(knowledgeBase.getKnowledgeBaseDescription());
         dataSetParam.setName(knowledgeBase.getKnowledgeBaseName());
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.CREATE_DATASET_URL)
+                .uri(maaSPlatform.getServerIp() + FastGptConstant.CREATE_DATASET_URL)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .bodyValue(dataSetParam)
@@ -64,11 +62,12 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                 .flatMap(response -> {
                     if (response.getCode() == 200) {
                         String knowledgeBaseId = String.valueOf(response.getData());
-                        return fileParts.flatMap(filePart -> uploadFile(filePart, knowledgeBaseId))
+                        return fileParts
+                                .flatMap(filePart -> uploadFile(filePart, knowledgeBaseId, maaSPlatform.getServerIp()))
                                 .then(Mono.defer(() -> {
                                     knowledgeBase.setKnowledgeBaseId(knowledgeBaseId);
                                     datasetMapper.insertKnowledgeBaseRecord(knowledgeBase);
-                                    return Mono.just(new ServiceResult(new ResultHeader(200, "create success")));
+                                    return handleFileId(knowledgeBaseId, maaSPlatform.getServerIp());
                                 }))
                                 .onErrorResume(e -> {
                                     log.error("Error occurred during file upload: {}", e.getMessage());
@@ -84,7 +83,37 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                 });
     }
 
-    private Mono<Void> uploadFile(FilePart filePart, String knowledgeBaseId) {
+    private Mono<ServiceResult> handleFileId(String knowledgeBaseId, String serverIp) {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("datasetId", knowledgeBaseId);
+        return webClient.post()
+                .uri(serverIp + FastGptConstant.GET_COLLECTION_LIST_URL)
+                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
+                .bodyValue(jsonObject)
+                .retrieve()
+                .bodyToMono(CreateDataSetResponse.class)
+                .flatMap(response -> {
+                    Object data = response.getData();
+                    JSONArray jsonArray = JSONObject.parseObject(JSONObject.toJSONString(data)).getJSONArray("data");
+                    Map<String, String> resultMap = IntStream.range(0, jsonArray.size())
+                            .mapToObj(jsonArray::getJSONObject)
+                            .collect(Collectors.toMap(
+                                    obj -> obj.getString("fileId"),
+                                    obj -> obj.getString("_id")
+                            ));
+                    List<File> fileList = datasetMapper.getFileNamesByKnowledgeBaseId(knowledgeBaseId);
+                    List<File> updatedFileList = fileList.stream()
+                            .map(file -> new File(
+                                    resultMap.getOrDefault(file.getFileId(), file.getFileId()),
+                                    file.getFileName()))
+                            .toList();
+                    datasetMapper.deleteFileById(knowledgeBaseId);
+                    datasetMapper.insertFileName(updatedFileList, knowledgeBaseId);
+                    return Mono.just(new ServiceResult(new ResultHeader(200, "create success")));
+                });
+    }
+
+    private Mono<Void> uploadFile(FilePart filePart, String knowledgeBaseId, String serverIp) {
         String filename = filePart.filename();
         Flux<DataBuffer> content = filePart.content();
 
@@ -103,7 +132,7 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                 });
 
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.UPLOAD_FILE_URL)
+                .uri(serverIp + FastGptConstant.UPLOAD_FILE_URL)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .body(BodyInserters.fromMultipartData(builder.build()))
@@ -117,10 +146,10 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                     Object data = response.getData();
                     JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(data));
                     String fileId = jsonObject.getString("fileId");
-                    CreateCollectionParam createCollectionParam = getCreateCollectionParam(knowledgeBaseId, fileId);
+                    CreateCollectionParam createCollectionParam = getCreateCollectionParam(knowledgeBaseId, fileId, filename);
 
                     return webClient.post()
-                            .uri(serverConstant.getFastGptServer() + FastGptConstant.CRATE_COLLECTION_URL)
+                            .uri(serverIp + FastGptConstant.CRATE_COLLECTION_URL)
                             .contentType(APPLICATION_JSON)
                             .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                             .bodyValue(createCollectionParam)
@@ -128,7 +157,8 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                             .bodyToMono(CreateDataSetResponse.class)
                             .flatMap(responseData -> {
                                 if (responseData.getCode() == 200) {
-                                    datasetMapper.insertFileName(fileId, filename, knowledgeBaseId);
+                                    File file = new File(String.valueOf(fileId), filename);
+                                    datasetMapper.insertFileName(List.of(file), String.valueOf(knowledgeBaseId));
                                 }
                                 return Mono.empty();
                             });
@@ -136,21 +166,21 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
     }
 
     @NotNull
-    private static CreateCollectionParam getCreateCollectionParam(String knowledgeBaseId, String fileId) {
+    private static CreateCollectionParam getCreateCollectionParam(String knowledgeBaseId, String fileId, String fileName) {
         CreateCollectionParam createCollectionParam = new CreateCollectionParam();
         createCollectionParam.setTrainingType("chunk");
         createCollectionParam.setDatasetId(knowledgeBaseId);
         createCollectionParam.setChunkSize(700);
         createCollectionParam.setChunkSplitter("");
         createCollectionParam.setFileId(fileId);
-        createCollectionParam.setName("");
+        createCollectionParam.setName(fileName);
         createCollectionParam.setQaPrompt("");
         return createCollectionParam;
     }
 
     @Override
-    public Mono<ServiceResult> removeDataset(String knowledgeBaseId) {
-        String url = serverConstant.getFastGptServer() + FastGptConstant.DELETE_DATASET_URL + knowledgeBaseId;
+    public Mono<ServiceResult> removeDataset(String knowledgeBaseId, String serverIp) {
+        String url = serverIp + FastGptConstant.DELETE_DATASET_URL + knowledgeBaseId;
         return webClient.delete()
                 .uri(url)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
@@ -177,7 +207,7 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
     }
 
     @Override
-    public Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase) {
+    public Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase, MaaSPlatform maaSPlatform) {
         KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(knowledgeBase.getKnowledgeBaseId());
         if (knowledgeBaseRecordById == null) {
             return Mono.just(new ServiceResult(new ResultHeader(500, "dataset is not exist")));
@@ -189,7 +219,7 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
         updateParam.put("avatar", "core/dataset/commonDatasetColor");
 
         return webClient.put()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.UPDATE_DATASET_URL)
+                .uri(maaSPlatform.getServerIp() + FastGptConstant.UPDATE_DATASET_URL)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .bodyValue(updateParam)
@@ -208,6 +238,35 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                 .onErrorResume(e -> {
                     log.error("Error occurred while delete dataset: {}", e.getMessage());
                     return Mono.just(new ServiceResult(new ResultHeader(500, "update failed")));
+                });
+    }
+
+    @Override
+    public Mono<ServiceResult> uploadFiles(Flux<FilePart> fileParts, String knowledgeBaseId, String serverIp) {
+        return fileParts.flatMap(filePart -> uploadFile(filePart, knowledgeBaseId, serverIp))
+                .then(Mono.defer(() -> handleFileId(knowledgeBaseId, serverIp)))
+                .onErrorResume(e -> {
+                    log.error("Error occurred during file upload: {}", e.getMessage());
+                    return Mono.just(new ServiceResult(new ResultHeader(500, "file upload failed")));
+                });
+    }
+
+    @Override
+    public Mono<ServiceResult> deleteFile(String fileId, String serverIp) {
+        return webClient.delete().uri(serverIp + FastGptConstant.DELETE_FILE_URL + fileId)
+                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
+                .retrieve()
+                .bodyToMono(CreateDataSetResponse.class)
+                .flatMap(response -> {
+                    if (response.getCode() == 200) {
+                        return Mono.fromRunnable(() -> datasetMapper.deleteFileByFileId(fileId)).then(Mono.just(new ServiceResult(new ResultHeader(200, "delete file success"))));
+                    } else {
+                        return Mono.just(new ServiceResult(new ResultHeader(response.getCode(), response.getStatusText())));
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Error occurred while delete dataset: {}", e.getMessage());
+                    return Mono.just(new ServiceResult(new ResultHeader(500, "delete file failed")));
                 });
     }
 }

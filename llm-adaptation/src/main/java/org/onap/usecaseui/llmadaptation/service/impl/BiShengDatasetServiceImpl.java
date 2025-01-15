@@ -3,14 +3,11 @@ package org.onap.usecaseui.llmadaptation.service.impl;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
-import org.onap.usecaseui.llmadaptation.bean.KnowledgeBase;
-import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
-import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
+import org.onap.usecaseui.llmadaptation.bean.*;
 import org.onap.usecaseui.llmadaptation.bean.bisheng.BiShengCreateDatasetResponse;
 import org.onap.usecaseui.llmadaptation.bean.bisheng.ProcessFileResponse;
 import org.onap.usecaseui.llmadaptation.constant.BiShengConstant;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
 import org.onap.usecaseui.llmadaptation.mapper.DatasetMapper;
 import org.onap.usecaseui.llmadaptation.service.BiShengDatasetService;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
@@ -26,7 +23,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
+import java.util.List;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
@@ -40,19 +37,18 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
     @Autowired
     private DatasetMapper datasetMapper;
 
-    @Autowired
-    private ServerConstant serverConstant;
 
     @Override
-    public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData) {
+    public Mono<ServiceResult> createDataset(Flux<FilePart> fileParts, String metaData, MaaSPlatform maaSPlatform) {
+
         KnowledgeBase knowledgeBase = JSONObject.parseObject(metaData, KnowledgeBase.class);
         knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
         JSONObject createParam = new JSONObject();
         createParam.put("description", knowledgeBase.getKnowledgeBaseDescription());
-        createParam.put("model", serverConstant.getBiShengModel());
+        createParam.put("model", maaSPlatform.getVectorModel());
         createParam.put("name", knowledgeBase.getKnowledgeBaseName());
         return webClient.post()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.CREATE_DATASET_URL)
+                .uri(maaSPlatform.getServerIp() + BiShengConstant.CREATE_DATASET_URL)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .bodyValue(createParam)
@@ -63,7 +59,7 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                         return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatus_message())));
                     }
                     int knowledgeBaseId = response.getData().getIntValue("id");
-                    return fileParts.flatMap(filePart -> processFile(filePart, knowledgeBaseId))
+                    return fileParts.flatMap(filePart -> processFile(filePart, knowledgeBaseId, maaSPlatform.getServerIp()))
                             .then(Mono.defer(() -> {
                                 knowledgeBase.setKnowledgeBaseId(String.valueOf(knowledgeBaseId));
                                 datasetMapper.insertKnowledgeBaseRecord(knowledgeBase);
@@ -78,7 +74,7 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                 });
     }
 
-    private Mono<Void> processFile(FilePart filePart, int knowledgeBaseId) {
+    private Mono<Void> processFile(FilePart filePart, int knowledgeBaseId, String serverIp) {
         String filename = filePart.filename();
         Flux<DataBuffer> content = filePart.content();
         MultipartBodyBuilder builder = new MultipartBodyBuilder();
@@ -93,7 +89,7 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                     headers.setContentType(MediaType.TEXT_PLAIN);
                 });
         return webClient.post()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.UPLOAD_FILE_URL)
+                .uri(serverIp + BiShengConstant.UPLOAD_FILE_URL)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .body(BodyInserters.fromMultipartData(builder.build()))
@@ -113,15 +109,17 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                     jsonArray.add(jsonObject);
                     processParam.put("file_list", jsonArray);
                     return webClient.post()
-                            .uri(serverConstant.getBiShengServer() + BiShengConstant.PROCESS_FILE_URL)
+                            .uri(serverIp + BiShengConstant.PROCESS_FILE_URL)
                             .contentType(APPLICATION_JSON)
                             .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                             .bodyValue(processParam)
                             .retrieve()
                             .bodyToMono(ProcessFileResponse.class).flatMap(lastResponse -> {
                                 if (lastResponse.getStatus_code() == 200) {
-                                    String fileId = UUID.randomUUID().toString();
-                                    datasetMapper.insertFileName(fileId, filename, String.valueOf(knowledgeBaseId));
+                                    JSONObject data = lastResponse.getData().get(0);
+                                    int fileId = data.getIntValue("id");
+                                    File file = new File(String.valueOf(fileId), filename);
+                                    datasetMapper.insertFileName(List.of(file), String.valueOf(knowledgeBaseId));
                                 }
                                 return Mono.empty();
                             });
@@ -129,9 +127,9 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
     }
 
     @Override
-    public Mono<ServiceResult> removeDataset(String knowledgeBaseId) {
+    public Mono<ServiceResult> removeDataset(String knowledgeBaseId, String serverIp) {
         return webClient.delete()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.DATASET_V2_URL + knowledgeBaseId)
+                .uri(serverIp + BiShengConstant.DATASET_V2_URL + knowledgeBaseId)
                 .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
                 .retrieve()
                 .bodyToMono(BiShengCreateDatasetResponse.class)
@@ -156,7 +154,7 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
     }
 
     @Override
-    public Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase) {
+    public Mono<ServiceResult> editDataset(KnowledgeBase knowledgeBase, MaaSPlatform maaSPlatform) {
         KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(knowledgeBase.getKnowledgeBaseId());
         if (knowledgeBaseRecordById == null) {
             return Mono.just(new ServiceResult(new ResultHeader(500, "dataset is not exist")));
@@ -165,10 +163,10 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
         updateParam.put("knowledge_id", knowledgeBase.getKnowledgeBaseId());
         updateParam.put("name", knowledgeBase.getKnowledgeBaseName());
         updateParam.put("description", knowledgeBase.getKnowledgeBaseDescription());
-        updateParam.put("model", serverConstant.getBiShengModel());
+        updateParam.put("model", maaSPlatform.getVectorModel());
 
         return webClient.put()
-                .uri(serverConstant.getBiShengServer() + BiShengConstant.DATASET_V2_URL)
+                .uri(maaSPlatform.getServerIp() + BiShengConstant.DATASET_V2_URL)
                 .contentType(APPLICATION_JSON)
                 .bodyValue(updateParam)
                 .retrieve()
@@ -186,6 +184,36 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                 .onErrorResume(e -> {
                     log.error("Error occurred while delete dataset: {}", e.getMessage());
                     return Mono.just(new ServiceResult(new ResultHeader(500, "update failed")));
+                });
+    }
+
+    @Override
+    public Mono<ServiceResult> uploadFiles(Flux<FilePart> fileParts, String knowledgeBaseId, String serverIp) {
+        return fileParts.flatMap(filePart -> processFile(filePart, Integer.parseInt(knowledgeBaseId), serverIp))
+                .then(Mono.just(new ServiceResult(new ResultHeader(200, "upload success"))))
+                .onErrorResume(e -> {
+                    log.error("Error occurred during file upload: {}", e.getMessage());
+                    return Mono.just(new ServiceResult(new ResultHeader(500, "file upload failed")));
+                });
+    }
+
+    @Override
+    public Mono<ServiceResult> deleteFile(String fileId, String serverIp) {
+        return webClient.delete()
+                .uri(serverIp + BiShengConstant.DELETE_FILE_URL + fileId)
+                .header(CommonConstant.COOKIE, BiShengConstant.COOKIE_VALUE)
+                .retrieve()
+                .bodyToMono(BiShengCreateDatasetResponse.class)
+                .flatMap(response -> {
+                    if (response.getStatus_code() == 200) {
+                        return Mono.fromRunnable(() -> datasetMapper.deleteFileByFileId(fileId)).then(Mono.just(new ServiceResult(new ResultHeader(200, "delete file success"))));
+                    } else {
+                        return Mono.just(new ServiceResult(new ResultHeader(response.getStatus_code(), response.getStatus_message())));
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Error occurred while delete dataset: {}", e.getMessage());
+                    return Mono.just(new ServiceResult(new ResultHeader(500, "delete file failed")));
                 });
     }
 }

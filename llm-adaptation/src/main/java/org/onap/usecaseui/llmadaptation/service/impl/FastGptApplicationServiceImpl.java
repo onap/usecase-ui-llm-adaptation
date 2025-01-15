@@ -11,7 +11,6 @@ import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetRespon
 import org.onap.usecaseui.llmadaptation.bean.fastgpt.application.*;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
 import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
 import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.service.FastGptApplicationService;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
@@ -43,18 +42,15 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
     @Autowired
     private WebClient webClient;
 
-    @Autowired
-    private ServerConstant serverConstant;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public Mono<ServiceResult> createApplication(Application application) {
+    public Mono<ServiceResult> createApplication(Application application,  String serverIp) {
         try (InputStream inputStream = resourceLoader.getResource(FastGptConstant.CREATE_APP_PARAM_FILE_URL).getInputStream()) {
             CreateApplicationParam createApplicationParam = objectMapper.readValue(inputStream, CreateApplicationParam.class);
             createApplicationParam.setName(application.getApplicationName());
 
-            return createApplication(createApplicationParam, application)
+            return createApplication(createApplicationParam, application, serverIp)
                     .onErrorResume(e -> {
                         log.error("Error occurred while creating application: {}", e.getMessage());
                         return Mono.just(new ServiceResult(new ResultHeader(500, "Application creation failed")));
@@ -66,9 +62,9 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
         }
     }
 
-    private Mono<ServiceResult> createApplication(CreateApplicationParam createApplicationParam, Application application) {
+    private Mono<ServiceResult> createApplication(CreateApplicationParam createApplicationParam, Application application,  String serverIp) {
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.CREATE_APPLICATION)
+                .uri(serverIp + FastGptConstant.CREATE_APPLICATION)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .bodyValue(createApplicationParam)
@@ -76,16 +72,15 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
                 .bodyToMono(CreateDataSetResponse.class)
                 .flatMap(response -> {
                     if (response.getCode() == 200) {
-                        return handleApplicationResponse(response, application);
+                        return handleApplicationResponse(String.valueOf(response.getData()), application, serverIp);
                     }
                     return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
                 });
     }
 
-    private Mono<ServiceResult> handleApplicationResponse(CreateDataSetResponse createDataSetResponse, Application application) {
-        String data = String.valueOf(createDataSetResponse.getData());
-        application.setApplicationId(data);
-        String url = serverConstant.getFastGptServer() + FastGptConstant.UPDATE_APPLICATION + data;
+    private Mono<ServiceResult> handleApplicationResponse(String dataId, Application application,  String serverIp) {
+        application.setApplicationId(dataId);
+        String url = serverIp + FastGptConstant.UPDATE_APPLICATION + dataId;
         UpdateApplicationParam updateApplicationParam = new UpdateApplicationParam();
         updateApplicationParam.setAvatar("/imgs/app/avatar/simple.svg");
         updateApplicationParam.setDefaultPermission(0);
@@ -101,19 +96,19 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
                 .bodyToMono(CreateDataSetResponse.class)
                 .flatMap(response -> {
                     if (response.getCode() == 200) {
-                        return publishApplication(application, data);
+                        return publishApplication(application, dataId, serverIp);
                     }
                     return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
                 });
     }
 
-    private Mono<ServiceResult> publishApplication(Application application, String data) {
+    private Mono<ServiceResult> publishApplication(Application application, String data,  String serverIp) {
         try (InputStream inputStream = resourceLoader.getResource(FastGptConstant.PUBLISH_APP_PARAM_FILE_URL).getInputStream()) {
             PublishApplicationParam publishApplicationParam = objectMapper.readValue(inputStream, PublishApplicationParam.class);
             publishApplicationParam.setVersionName(TimeUtil.getNowTime());
             publishApplicationParam.getChatConfig().setWelcomeText(application.getOpeningRemarks());
             setApplicationParameters(application, publishApplicationParam);
-            String publishUrl = serverConstant.getFastGptServer() + FastGptConstant.PUBLISH_APPLICATION + data;
+            String publishUrl = serverIp + FastGptConstant.PUBLISH_APPLICATION + data;
 
             return webClient.post()
                     .uri(publishUrl)
@@ -167,7 +162,7 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
     }
 
     @Override
-    public Flux<String> chat(JSONObject question) {
+    public Flux<String> chat(JSONObject question,  String serverIp) {
         ChatParam chatParam = new ChatParam();
         chatParam.setAppId(question.getString("applicationId"));
         chatParam.setStream(true);
@@ -186,7 +181,7 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
         chatParam.setMessages(messages);
         AtomicBoolean isDone = new AtomicBoolean(false);
         return webClient.post()
-                .uri(serverConstant.getFastGptServer() + FastGptConstant.APPLICATION_CHAT_URL)
+                .uri(serverIp + FastGptConstant.APPLICATION_CHAT_URL)
                 .contentType(APPLICATION_JSON)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
                 .bodyValue(chatParam)
@@ -219,8 +214,8 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
     }
 
     @Override
-    public Mono<ServiceResult> removeApplication(String applicationId) {
-        String url = serverConstant.getFastGptServer() + FastGptConstant.DELETE_APPLICATION + applicationId;
+    public Mono<ServiceResult> removeApplication(String applicationId,  String serverIp) {
+        String url = serverIp + FastGptConstant.DELETE_APPLICATION + applicationId;
         return webClient.delete()
                 .uri(url)
                 .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
@@ -246,33 +241,8 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
     }
 
     @Override
-    public Mono<ServiceResult> editApplication(Application application) {
-        String url = serverConstant.getFastGptServer() + FastGptConstant.UPDATE_APPLICATION + application.getApplicationId();
-        UpdateApplicationParam updateApplicationParam = new UpdateApplicationParam();
-        updateApplicationParam.setAvatar("/imgs/app/avatar/simple.svg");
-        updateApplicationParam.setName(application.getApplicationName());
-        updateApplicationParam.setIntro(application.getApplicationDescription());
-
-        return webClient.put()
-                .uri(url)
-                .contentType(APPLICATION_JSON)
-                .header(CommonConstant.COOKIE, FastGptConstant.COOKIE_VALUE)
-                .bodyValue(updateApplicationParam)
-                .retrieve()
-                .bodyToMono(CreateDataSetResponse.class)
-                .flatMap(response -> {
-                    if (response.getCode() == 200) {
-                        return Mono.fromRunnable(() -> {
-                            applicationMapper.updateApplication(application);
-                        }).then(Mono.just(new ServiceResult(new ResultHeader(200, "edit success"))));
-                    } else {
-                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Error occurred while delete dataset: {}", e.getMessage());
-                    return Mono.just(new ServiceResult(new ResultHeader(500, "edit failed")));
-                });
+    public Mono<ServiceResult> editApplication(Application application,  String serverIp) {
+        return handleApplicationResponse(application.getApplicationId(), application, serverIp);
     }
 
 }

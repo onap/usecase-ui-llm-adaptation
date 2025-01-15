@@ -3,7 +3,7 @@ package org.onap.usecaseui.llmadaptation.service.impl;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.onap.usecaseui.llmadaptation.bean.*;
-import org.onap.usecaseui.llmadaptation.constant.ServerConstant;
+import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
 import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.mapper.DatasetMapper;
 import org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper;
@@ -36,9 +36,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Autowired
     private MaaSPlatformMapper maaSPlatformMapper;
 
-    @Autowired
-    private ServerConstant serverConstant;
-
     @Override
     public Mono<ServiceResult> createApplication(Application application) {
         List<Application> applications = applicationMapper.getAllApplication();
@@ -48,37 +45,34 @@ public class ApplicationServiceImpl implements ApplicationService {
                 return Mono.just(new ServiceResult(new ResultHeader(500, "name exists"), applications));
             }
         }
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(application.getMaaSPlatformId());
+        MaaSPlatform maaSPlatformById = getMaaSPlatFormById(application.getMaaSPlatformId());
         if (maaSPlatformById == null) {
             return Mono.just(new ServiceResult(new ResultHeader(500, "maas is not exist")));
         }
         String maaSType = maaSPlatformById.getMaaSType();
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptApplicationService.createApplication(application);
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptApplicationService.createApplication(application, maaSPlatformById.getServerIp());
         }
-        return biShengApplicationService.createApplication(application);
+        return biShengApplicationService.createApplication(application, maaSPlatformById.getServerIp());
     }
 
     @Override
     public Mono<ServiceResult> removeApplication(String applicationId) {
-        String maaSType = getMaaSType(applicationId);
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptApplicationService.removeApplication(applicationId);
+        MaaSPlatform maaSPlatform = getMaaSPlatFormByAppId(applicationId);
+        if (FastGptConstant.FAST_GPT.equals(maaSPlatform.getMaaSType())) {
+            return fastGptApplicationService.removeApplication(applicationId, maaSPlatform.getServerIp());
         }
-        return biShengApplicationService.removeApplication(applicationId);
+        return biShengApplicationService.removeApplication(applicationId, maaSPlatform.getServerIp());
     }
 
     @Override
     public Flux<String> chat(JSONObject question) {
         String applicationId = question.getString("applicationId");
-        String maaSType = getMaaSType(applicationId);
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptApplicationService.chat(question);
+        MaaSPlatform maaSPlatform = getMaaSPlatFormByAppId(applicationId);
+        if (FastGptConstant.FAST_GPT.equals(maaSPlatform.getMaaSType())) {
+            return fastGptApplicationService.chat(question, maaSPlatform.getServerIp());
         }
-        return biShengApplicationService.chat(question);
+        return biShengApplicationService.chat(question, maaSPlatform.getServerIp());
     }
 
     @Override
@@ -117,22 +111,24 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public Mono<ServiceResult> editApplication(Application application) {
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(application.getMaaSPlatformId());
+        MaaSPlatform maaSPlatformById = getMaaSPlatFormById(application.getMaaSPlatformId());
         if (maaSPlatformById == null) {
             return Mono.just(new ServiceResult(new ResultHeader(500, "maas is not exist")));
         }
         String maaSType = maaSPlatformById.getMaaSType();
-        String fastGptType = serverConstant.getFastGptType();
-        if (fastGptType.equals(maaSType)) {
-            return fastGptApplicationService.editApplication(application);
+        if (FastGptConstant.FAST_GPT.equals(maaSType)) {
+            return fastGptApplicationService.editApplication(application, maaSPlatformById.getServerIp());
         }
-        return biShengApplicationService.editApplication(application);
+        return biShengApplicationService.editApplication(application, maaSPlatformById.getServerIp());
     }
 
-    private String getMaaSType(String applicationId) {
+    private MaaSPlatform getMaaSPlatFormByAppId(String applicationId) {
         Application applicationById = applicationMapper.getApplicationById(applicationId);
         KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(applicationById.getKnowledgeBaseId());
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(knowledgeBaseRecordById.getMaaSPlatformId());
-        return maaSPlatformById.getMaaSType();
+        return getMaaSPlatFormById(knowledgeBaseRecordById.getMaaSPlatformId());
+    }
+
+    private MaaSPlatform getMaaSPlatFormById(String maaSPlatformId) {
+        return maaSPlatformMapper.getMaaSPlatformById(maaSPlatformId);
     }
 }
