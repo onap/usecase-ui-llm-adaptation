@@ -45,7 +45,7 @@ public class DatasetServiceImpl implements DatasetService {
         if (!CollectionUtils.isEmpty(knowledgeBaseRecords)) {
             List<KnowledgeBase> collect = knowledgeBaseRecords.stream().filter(base -> base.getKnowledgeBaseName().equals(knowledgeBase.getKnowledgeBaseName())).toList();
             if (!collect.isEmpty()) {
-                return Mono.just(new ServiceResult(new ResultHeader(200, "name exists"), knowledgeBaseRecords));
+                return Mono.just(new ServiceResult(new ResultHeader(500, "name exists"), knowledgeBaseRecords));
             }
         }
         MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(knowledgeBase.getMaaSPlatformId());
@@ -74,7 +74,7 @@ public class DatasetServiceImpl implements DatasetService {
     public ServiceResult getDataSetRecord() {
         List<KnowledgeBase> knowledgeBaseRecords = datasetMapper.getKnowledgeBaseRecords();
         if (CollectionUtils.isEmpty(knowledgeBaseRecords)) {
-            return new ServiceResult(new ResultHeader(500, "get datasets failed"), knowledgeBaseRecords);
+            return new ServiceResult(new ResultHeader(200, "no dataset"), knowledgeBaseRecords);
         }
 
         knowledgeBaseRecords.forEach(knowledgeBase -> {

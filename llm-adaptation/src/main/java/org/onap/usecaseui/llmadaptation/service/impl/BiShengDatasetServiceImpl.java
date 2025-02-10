@@ -118,8 +118,11 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                                 if (lastResponse.getStatus_code() == 200) {
                                     JSONObject data = lastResponse.getData().get(0);
                                     int fileId = data.getIntValue("id");
-                                    File file = new File(String.valueOf(fileId), filename);
-                                    datasetMapper.insertFileName(List.of(file), String.valueOf(knowledgeBaseId));
+                                    File fileMessageByName = datasetMapper.getFileMessageByName(filename, String.valueOf(knowledgeBaseId));
+                                    if (fileMessageByName == null) {
+                                        File file = new File(String.valueOf(fileId), filename);
+                                        datasetMapper.insertFileName(List.of(file), String.valueOf(knowledgeBaseId));
+                                    }
                                 }
                                 return Mono.empty();
                             });
@@ -134,7 +137,7 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                 .retrieve()
                 .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getStatus_code() == 200) {
+                    if (response.getStatus_code() == 200 || response.getStatus_code() == 404) {
                         return Mono.fromRunnable(() -> {
                             try {
                                 datasetMapper.deleteKnowledgeBaseByUuid(knowledgeBaseId);
@@ -177,6 +180,8 @@ public class BiShengDatasetServiceImpl implements BiShengDatasetService {
                             knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
                             datasetMapper.updateKnowledgeBase(knowledgeBase);
                         }).then(Mono.just(new ServiceResult(new ResultHeader(200, "update success"))));
+                    } else if (response.getStatus_code() == 404) {
+                        return Mono.just(new ServiceResult(new ResultHeader(404, "The resource does not exist,please delete")));
                     } else {
                         return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatus_message())));
                     }

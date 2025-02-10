@@ -19,7 +19,7 @@ create table if not exists model_information(
 create table if not exists knowledge_base(
     knowledge_base_id varchar(255) primary key,
     knowledge_base_name varchar(255),
-    knowledge_base_description VARCHAR (225),
+    knowledge_base_description VARCHAR (255),
     operator_id varchar(255),
     operator_name varchar(255),
     maas_platform_id varchar(255),
@@ -41,9 +41,9 @@ create table if not exists application(
     knowledge_base_id varchar(255),
     model_id varchar(255),
     model_name varchar(255),
-    prompt varchar(255),
+    prompt varchar(1000),
     temperature float,
     top_p float,
-    opening_remarks varchar(255)
+    opening_remarks varchar(500)
 )
 

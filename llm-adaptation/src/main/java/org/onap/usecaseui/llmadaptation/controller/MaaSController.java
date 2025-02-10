@@ -27,4 +27,9 @@ public class MaaSController {
     public ServiceResult registerMaaSPlatform(@RequestBody MaaSPlatform maaSPlatform) {
         return maaSService.registerMaaSPlatform(maaSPlatform);
     }
+
+    @DeleteMapping(value = "/maas/delete/{maaSPlatformId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ServiceResult registerMaaSPlatform(@PathVariable("maaSPlatformId") String maaSPlatformId) {
+        return maaSService.deleteMaaSPlatform(maaSPlatformId);
+    }
 }

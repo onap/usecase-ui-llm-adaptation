@@ -87,4 +87,8 @@
     <select id="getKnowledgeIdByFileId" resultType="java.lang.String">
         select knowledge_base_id from file where file_id = #{fileId}
     </select>
+    <select id="getFileMessageByName" resultType="org.onap.usecaseui.llmadaptation.bean.File">
+        select file_id as fileId,file_name as fileName
+        from file where file_name = #{fileName} and knowledge_base_id = #{knowledgeBaseId}
+    </select>
 </mapper>

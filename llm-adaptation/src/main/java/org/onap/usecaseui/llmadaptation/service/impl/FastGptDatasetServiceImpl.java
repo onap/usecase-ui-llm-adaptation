@@ -157,8 +157,11 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                             .bodyToMono(CreateDataSetResponse.class)
                             .flatMap(responseData -> {
                                 if (responseData.getCode() == 200) {
-                                    File file = new File(String.valueOf(fileId), filename);
-                                    datasetMapper.insertFileName(List.of(file), String.valueOf(knowledgeBaseId));
+                                    File fileMessageByName = datasetMapper.getFileMessageByName(filename, knowledgeBaseId);
+                                    if (fileMessageByName == null) {
+                                        File file = new File(fileId, filename);
+                                        datasetMapper.insertFileName(List.of(file), knowledgeBaseId);
+                                    }
                                 }
                                 return Mono.empty();
                             });
@@ -187,7 +190,7 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                 .retrieve()
                 .bodyToMono(CreateDataSetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() == 200) {
+                    if (response.getCode() == 200 || response.getCode() == 501000) {
                         return Mono.fromRunnable(() -> {
                             try {
                                 datasetMapper.deleteKnowledgeBaseByUuid(knowledgeBaseId);
@@ -231,6 +234,8 @@ public class FastGptDatasetServiceImpl implements FastGptDatasetService {
                             knowledgeBase.setUpdateTime(TimeUtil.getNowTime());
                             datasetMapper.updateKnowledgeBase(knowledgeBase);
                         }).then(Mono.just(new ServiceResult(new ResultHeader(200, "update success"))));
+                    } else if (response.getCode() == 501000) {
+                        return Mono.just(new ServiceResult(new ResultHeader(404, "The resource does not exist,please delete")));
                     } else {
                         return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
                     }

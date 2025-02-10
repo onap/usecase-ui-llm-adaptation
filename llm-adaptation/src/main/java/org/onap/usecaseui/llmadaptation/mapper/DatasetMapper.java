@@ -30,4 +30,6 @@ public interface DatasetMapper {
     int deleteFileByFileId(@Param(value = "fileId") String fileId);
 
     String getKnowledgeIdByFileId(@Param(value = "fileId") String fileId);
+
+    File getFileMessageByName(@Param(value = "fileName") String fileName, @Param(value = "knowledgeBaseId") String knowledgeBaseId);
 }

@@ -97,8 +97,11 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
                 .flatMap(response -> {
                     if (response.getCode() == 200) {
                         return publishApplication(application, dataId, serverIp);
+                    } else if (response.getCode() == 502000) {
+                        return Mono.just(new ServiceResult(new ResultHeader(404, "The resource does not exist,please delete")));
+                    } else {
+                        return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
                     }
-                    return Mono.just(new ServiceResult(new ResultHeader(500, response.getStatusText())));
                 });
     }
 
@@ -222,7 +225,7 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
                 .retrieve()
                 .bodyToMono(CreateDataSetResponse.class)
                 .flatMap(response -> {
-                    if (response.getCode() == 200) {
+                    if (response.getCode() == 200 || response.getCode() == 502000) {
                         return Mono.fromRunnable(() -> {
                             try {
                                 applicationMapper.deleteApplicationById(applicationId);

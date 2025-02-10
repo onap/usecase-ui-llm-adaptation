@@ -6,4 +6,11 @@ import lombok.Data;
 @Data
 public class BiShengCreateDatasetResponse extends ResponseStatus {
     private JSONObject data;
+
+    @Override
+    public String toString() {
+        return "BiShengCreateDatasetResponse{" +
+                "data=" + data +
+                "} " + super.toString();
+    }
 }

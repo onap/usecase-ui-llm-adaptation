@@ -16,7 +16,5 @@ public interface ApplicationMapper {
 
     Application getApplicationById(@Param(value = "applicationId") String applicationId);
 
-    int updateApplication(@Param(value = "application") Application application);
-
     List<Application> getApplicationByDatasetId(@Param(value = "knowledgeBaseId") String knowledgeBaseId);
 }

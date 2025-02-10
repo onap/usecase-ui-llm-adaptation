@@ -21,5 +21,9 @@ public interface MaaSPlatformMapper {
 
     MaaSPlatform getMaaSPlatformById(@Param(value = "maaSPlatformId") String maaSPlatformId);
 
-    ModelInformation getModelById(@Param(value = "modelId") String modelId);
+    ModelInformation getModelById(@Param(value = "modelId") String modelId, @Param(value = "maaSPlatformId") String maaSPlatformId);
+
+    int deleteMaaSPlatformById(@Param(value = "maaSPlatformId") String maaSPlatformId);
+
+    int deleteModelByMaaSPlatformId(@Param(value = "maaSPlatformId") String maaSPlatformId);
 }

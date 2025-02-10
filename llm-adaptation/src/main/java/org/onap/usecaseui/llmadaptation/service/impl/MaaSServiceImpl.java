@@ -6,7 +6,6 @@ import org.onap.usecaseui.llmadaptation.mapper.MaaSPlatformMapper;
 import org.onap.usecaseui.llmadaptation.service.MaaSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +15,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class MaaSServiceImpl implements MaaSService {
-    @Autowired
-    private WebClient webClient;
 
     @Autowired
     private MaaSPlatformMapper maaSPlatformMapper;
@@ -44,13 +41,14 @@ public class MaaSServiceImpl implements MaaSService {
 
     @Override
     public ServiceResult registerMaaSPlatform(MaaSPlatform maaSPlatform) {
-        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(maaSPlatform.getMaaSPlatformId());
+        String maaSPlatformId = maaSPlatform.getMaaSPlatformId();
+        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(maaSPlatformId);
         if (maaSPlatformById != null) {
             return new ServiceResult(new ResultHeader(500, maaSPlatform.getMaaSPlatformName() + "already exists"));
         }
         List<ModelInformation> modelList = maaSPlatform.getModelList();
         for (ModelInformation model : modelList) {
-            ModelInformation modelById = maaSPlatformMapper.getModelById(model.getModelId());
+            ModelInformation modelById = maaSPlatformMapper.getModelById(model.getModelId(), maaSPlatformId);
             if (modelById != null) {
                 return new ServiceResult(new ResultHeader(500, model.getModelName() + " already exists"));
             }
@@ -58,5 +56,20 @@ public class MaaSServiceImpl implements MaaSService {
         maaSPlatformMapper.insertMaaSPlatform(maaSPlatform);
         maaSPlatformMapper.insertModel(maaSPlatform.getMaaSPlatformId(), maaSPlatform.getModelList());
         return new ServiceResult(new ResultHeader(200, "register success"));
+    }
+
+    @Override
+    public ServiceResult deleteMaaSPlatform(String maaSPlatformId) {
+        MaaSPlatform maaSPlatformById = maaSPlatformMapper.getMaaSPlatformById(maaSPlatformId);
+        if (maaSPlatformById == null) {
+            return new ServiceResult(new ResultHeader(500, maaSPlatformId + "does not exist"));
+        }
+        if (maaSPlatformMapper.deleteMaaSPlatformById(maaSPlatformId) < 1) {
+            return new ServiceResult(new ResultHeader(500, " delete failed"));
+        }
+        if (maaSPlatformMapper.deleteModelByMaaSPlatformId(maaSPlatformId) < 1) {
+            return new ServiceResult(new ResultHeader(500, " delete failed"));
+        }
+        return new ServiceResult(new ResultHeader(200, " delete success"));
     }
 }

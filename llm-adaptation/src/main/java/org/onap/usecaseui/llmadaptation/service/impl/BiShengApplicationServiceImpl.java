@@ -2,6 +2,7 @@ package org.onap.usecaseui.llmadaptation.service.impl;
 
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.onap.usecaseui.llmadaptation.bean.Application;
 import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
@@ -33,7 +34,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     private WebClient webClient;
 
     @Override
-    public Mono<ServiceResult> createApplication(Application application,  String serverIp) {
+    public Mono<ServiceResult> createApplication(Application application, String serverIp) {
         JSONObject createParam = new JSONObject();
         createParam.put("logo", "");
         createParam.put("name", application.getApplicationName());
@@ -51,7 +52,10 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                         return Mono.just(new ServiceResult(new ResultHeader(createResponse.getStatus_code(), createResponse.getStatus_message())));
                     }
                     String applicationId = data.getString("id");
-                    data.put("desc", application.getApplicationDescription());
+                    String applicationDescription = application.getApplicationDescription();
+                    if (!StringUtil.isNullOrEmpty(applicationDescription)) {
+                        data.put("desc", applicationDescription);
+                    }
                     data.put("model_name", application.getLargeModelId());
                     data.put("temperature", application.getTemperature() / 10);
                     List<Integer> list = new ArrayList<>();
@@ -67,13 +71,17 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                             .retrieve()
                             .bodyToMono(BiShengCreateDatasetResponse.class)
                             .flatMap(updateResponse -> {
-                                application.setApplicationId(applicationId);
-                                applicationMapper.insertApplication(application);
-                                return Mono.just(new ServiceResult(new ResultHeader(200, "Application created successfully")));
+                                if (updateResponse.getStatus_code() == 200) {
+                                    application.setApplicationId(applicationId);
+                                    applicationMapper.insertApplication(application);
+                                    return Mono.just(new ServiceResult(new ResultHeader(200, "Application created successfully")));
+                                }
+                                log.error("error is {}",updateResponse.getStatus_message());
+                                return Mono.just(new ServiceResult(new ResultHeader(updateResponse.getStatus_code(), "Application created failed")));
                             });
                 }).onErrorResume(e -> {
                     log.error("Error occurred while creating application: {}", e.getMessage());
-                    return Mono.just(new ServiceResult(new ResultHeader(500, "Application creation failed")));
+                    return Mono.just(new ServiceResult(new ResultHeader(500, "Application created failed")));
                 });
     }
 
@@ -95,7 +103,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                 .retrieve()
                 .bodyToFlux(String.class)
                 .flatMap(response -> {
-                    if("[DONE]".equals(response)){
+                    if ("[DONE]".equals(response)) {
                         return Flux.just(response);
                     }
                     JSONArray choices = JSONObject.parseObject(response).getJSONArray("choices");
@@ -119,7 +127,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                 .retrieve()
                 .bodyToMono(BiShengCreateDatasetResponse.class)
                 .flatMap(response -> {
-                    if (response.getStatus_code() == 200) {
+                    if (response.getStatus_code() == 200 || response.getStatus_code() == 10400) {
                         return Mono.fromRunnable(() -> {
                             try {
                                 applicationMapper.deleteApplicationById(applicationId);
@@ -158,7 +166,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                     data.put("knowledge_list", list);
                     data.put("model_name", application.getLargeModelId());
                     data.put("temperature", application.getTemperature() / 10);
-                    data.put("prompt",application.getPrompt());
+                    data.put("prompt", application.getPrompt());
                     data.put("guide_word", application.getOpeningRemarks());
                     return webClient.put()
                             .uri(serverIp + BiShengConstant.APPLICATION_URL)
@@ -168,8 +176,12 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                             .retrieve()
                             .bodyToMono(BiShengCreateDatasetResponse.class)
                             .flatMap(updateResponse -> {
-                                applicationMapper.updateApplication(application);
-                                return Mono.just(new ServiceResult(new ResultHeader(200, "Application update successfully")));
+                                if (updateResponse.getStatus_code() == 200) {
+                                    applicationMapper.insertApplication(application);
+                                    return Mono.just(new ServiceResult(new ResultHeader(200, "Application update successfully")));
+                                }
+                                log.error("error is {}", updateResponse.getStatus_message());
+                                return Mono.just(new ServiceResult(new ResultHeader(updateResponse.getStatus_code(), "Application update failed")));
                             });
                 }).onErrorResume(e -> {
                     log.error("Error occurred while update application: {}", e.getMessage());

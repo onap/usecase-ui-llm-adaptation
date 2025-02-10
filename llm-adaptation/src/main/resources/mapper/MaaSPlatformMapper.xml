@@ -51,6 +51,12 @@
     <select id="getModelById" resultType="org.onap.usecaseui.llmadaptation.bean.ModelInformation">
         select model_id as modelId,
                model_name as modelName
-        from model_information where model_id = #{modelId}
+        from model_information where model_id = #{modelId} and maas_platform_id = #{maaSPlatformId}
     </select>
+    <delete id="deleteMaaSPlatformById">
+        delete from maas_platform where maas_platform_id = #{maaSPlatformId}
+    </delete>
+    <delete id="deleteModelByMaaSPlatformId">
+        delete from model_information where maas_platform_id = #{maaSPlatformId}
+    </delete>
 </mapper>

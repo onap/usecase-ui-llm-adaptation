@@ -10,4 +10,6 @@ public interface MaaSService {
     List<Operator> getAllMaaSPlatform();
 
     ServiceResult registerMaaSPlatform(MaaSPlatform maaSPlatform);
+
+    ServiceResult deleteMaaSPlatform(String maaSPlatformId);
 }

@@ -74,15 +74,6 @@
         from application where application_id = #{applicationId}
     </select>
 
-    <update id="updateApplication">
-        update application
-        <trim prefix="set" suffixOverrides=",">
-            <if test="application.applicationName != null">application_name = #{application.applicationName},</if>
-            <if test="application.applicationDescription != null">application_description = #{application.applicationDescription},</if>
-        </trim>
-        where application_id = #{application.applicationId}
-    </update>
-
     <select id="getApplicationByDatasetId" resultType="org.onap.usecaseui.llmadaptation.bean.Application">
         select application_id as applicationId,
                application_name as applicationName,

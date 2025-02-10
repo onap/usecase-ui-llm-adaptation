@@ -79,7 +79,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public ServiceResult getApplications() {
         List<Application> allApplication = applicationMapper.getAllApplication();
         if (CollectionUtils.isEmpty(allApplication)) {
-            return new ServiceResult(new ResultHeader(500, "no application"), allApplication);
+            return new ServiceResult(new ResultHeader(200, "no application"), allApplication);
         }
         allApplication.forEach(application -> {
             KnowledgeBase knowledgeBaseRecordById = datasetMapper.getKnowledgeBaseRecordById(application.getKnowledgeBaseId());
