@@ -6,13 +6,13 @@
     <parent>
         <groupId>org.onap.usecase-ui.llm-adaptation</groupId>
         <artifactId>usecase-ui-llm-adaptation-parent</artifactId>
-        <version>15.0.0-SNAPSHOT</version>
+        <version>15.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>usecase-ui-llm-adapatation-standalone</artifactId>
     <packaging>pom</packaging>
     <name>usecase-ui-llm-adapatation-standalone</name>
-    <version>15.0.0-SNAPSHOT</version>
+    <version>15.0.1-SNAPSHOT</version>
 
     <properties>
         <adaptation.version>15.0.0</adaptation.version>
