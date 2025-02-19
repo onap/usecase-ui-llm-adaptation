@@ -17,11 +17,9 @@
 package org.onap.usecaseui.llmadaptation.constant;
 
 public class LLMConstant {
-    // Jiutian Model Key
     public static final String API_KEY = "65e82b2fa8a3d22f03679898.kTywdU/witQJlHdwgWAI+1thI2UUWfHN";
 
-    // Jiutian Model API Path
-    public static final String LARGE_MODEL_UIL = "http://jiutian.hq.cmcc/largemodel/api/v1/completions?klAssisId=65e6c42ba8a3d22f0366c84d";
+    public static final String LARGE_MODEL_UIL = "";
 
     public static final String RESPONSE = "response";
 }
