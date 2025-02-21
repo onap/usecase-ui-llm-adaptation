@@ -29,7 +29,7 @@ public class ApplicationController {
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> streamData(@RequestBody JSONObject question) {
+    public Flux<ChatResponse> streamData(@RequestBody JSONObject question) {
         return applicationService.chat(question);
     }
 

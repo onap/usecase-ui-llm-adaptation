@@ -66,7 +66,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public Flux<String> chat(JSONObject question) {
+    public Flux<ChatResponse> chat(JSONObject question) {
         String applicationId = question.getString("applicationId");
         MaaSPlatform maaSPlatform = getMaaSPlatFormByAppId(applicationId);
         if (FastGptConstant.FAST_GPT.equals(maaSPlatform.getMaaSType())) {

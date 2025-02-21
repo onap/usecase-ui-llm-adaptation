@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.onap.usecaseui.llmadaptation.bean.Application;
+import org.onap.usecaseui.llmadaptation.bean.ChatResponse;
 import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
 import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
 import org.onap.usecaseui.llmadaptation.bean.fastgpt.dataset.CreateDataSetResponse;
@@ -13,6 +14,7 @@ import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
 import org.onap.usecaseui.llmadaptation.constant.FastGptConstant;
 import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.service.FastGptApplicationService;
+import org.onap.usecaseui.llmadaptation.util.CommonUtil;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ResourceLoader;
@@ -164,8 +166,7 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
         });
     }
 
-    @Override
-    public Flux<String> chat(JSONObject question,  String serverIp) {
+    public Flux<ChatResponse> chat(JSONObject question, String serverIp) {
         ChatParam chatParam = new ChatParam();
         chatParam.setAppId(question.getString("applicationId"));
         chatParam.setStream(true);
@@ -192,11 +193,11 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
                 .bodyToFlux(String.class).flatMap(response -> parseAndTransform(response, isDone))
                 .onErrorResume(throwable -> {
                     log.error("An error occurred {}", throwable.getMessage());
-                    return Flux.just("Network Error");
+                    return CommonUtil.chatFailed();
                 });
     }
 
-    private Flux<String> parseAndTransform(String param, AtomicBoolean isDone) {
+    private Flux<ChatResponse> parseAndTransform(String param, AtomicBoolean isDone) {
         if (isDone.get()) {
             return Flux.empty();
         }
@@ -206,14 +207,21 @@ public class FastGptApplicationServiceImpl implements FastGptApplicationService 
         }
         JSONArray choices = jsonObject.getJSONArray("choices");
         JSONObject choice = choices.getJSONObject(0);
+        ChatResponse response = new ChatResponse();
+        response.setReference("");
+        response.setFinished("stop");
+        ResultHeader resultHeader = new ResultHeader(200,"success");
+        response.setResult_header(resultHeader);
         if ("stop".equals(choice.getString("finish_reason"))) {
             isDone.set(true);
-            return Flux.just("[DONE]");
+            response.setAnswer("[DONE]");
+            return Flux.just(response);
         }
         String string = choice.getJSONObject("delta").getString("content");
         isDone.set(false);
         string = string.replace(" ", "__SPACE__");
-        return Flux.just(string);
+        response.setAnswer(string);
+        return Flux.just(response);
     }
 
     @Override

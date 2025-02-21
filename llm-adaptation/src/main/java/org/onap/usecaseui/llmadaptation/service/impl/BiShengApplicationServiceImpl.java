@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONObject;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.onap.usecaseui.llmadaptation.bean.Application;
+import org.onap.usecaseui.llmadaptation.bean.ChatResponse;
 import org.onap.usecaseui.llmadaptation.bean.ResultHeader;
 import org.onap.usecaseui.llmadaptation.bean.ServiceResult;
 import org.onap.usecaseui.llmadaptation.bean.bisheng.BiShengCreateDatasetResponse;
@@ -12,6 +13,7 @@ import org.onap.usecaseui.llmadaptation.constant.BiShengConstant;
 import org.onap.usecaseui.llmadaptation.constant.CommonConstant;
 import org.onap.usecaseui.llmadaptation.mapper.ApplicationMapper;
 import org.onap.usecaseui.llmadaptation.service.BiShengApplicationService;
+import org.onap.usecaseui.llmadaptation.util.CommonUtil;
 import org.onap.usecaseui.llmadaptation.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -86,7 +88,7 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
     }
 
     @Override
-    public Flux<String> chat(JSONObject question, String serverIp) {
+    public Flux<ChatResponse> chat(JSONObject question, String serverIp) {
         JSONObject param = new JSONObject();
         param.put("model", question.getString("applicationId"));
         param.put("temperature", 0);
@@ -103,18 +105,25 @@ public class BiShengApplicationServiceImpl implements BiShengApplicationService 
                 .retrieve()
                 .bodyToFlux(String.class)
                 .flatMap(response -> {
+                    ChatResponse result = new ChatResponse();
+                    result.setReference("");
+                    result.setFinished("stop");
+                    ResultHeader resultHeader = new ResultHeader(200,"success");
+                    result.setResult_header(resultHeader);
                     if ("[DONE]".equals(response)) {
-                        return Flux.just(response);
+                        result.setAnswer("[DONE]");
+                        return Flux.just(result);
                     }
                     JSONArray choices = JSONObject.parseObject(response).getJSONArray("choices");
                     String jsonString = JSONObject.toJSONString(choices.get(0));
                     JSONObject jsonObject = JSONObject.parseObject(jsonString);
                     String string = jsonObject.getJSONObject("delta").getString("content");
-                    return Flux.just(string);
+                    result.setAnswer(string);
+                    return Flux.just(result);
                 })
                 .onErrorResume(e -> {
                     log.error("An error occurred {}", e.getMessage());
-                    return Flux.just("Network Error");
+                    return CommonUtil.chatFailed();
                 });
     }
 
