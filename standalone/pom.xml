@@ -6,16 +6,16 @@
     <parent>
         <groupId>org.onap.usecase-ui.llm-adaptation</groupId>
         <artifactId>usecase-ui-llm-adaptation-parent</artifactId>
-        <version>15.0.1-SNAPSHOT</version>
+        <version>16.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>usecase-ui-llm-adapatation-standalone</artifactId>
     <packaging>pom</packaging>
     <name>usecase-ui-llm-adapatation-standalone</name>
-    <version>15.0.1-SNAPSHOT</version>
+    <version>16.0.1-SNAPSHOT</version>
 
     <properties>
-        <adaptation.version>15.0.1</adaptation.version>
+        <adaptation.version>16.0.1</adaptation.version>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -21,7 +21,7 @@
 
     <groupId>org.onap.usecase-ui.llm-adaptation</groupId>
     <artifactId>usecase-ui-llm-adaptation-parent</artifactId>
-    <version>15.0.1-SNAPSHOT</version>
+    <version>16.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
         <module>llm-adaptation</module>
